@@ -7,7 +7,7 @@ use crate::middleware;
 
 pub fn router() -> Router {
     Router::new()
-        .nest("/guild", guild::router())
+        .nest("/guilds/{id}", guild::router())
         .route("/gateway/{id}", get(gateway::handle_websocket))
         .layer(axum::middleware::from_fn(
             middleware::api_protect::middleware,

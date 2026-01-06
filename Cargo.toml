@@ -4,6 +4,22 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Gilbert O. <giloe.dev@gmail.com>"]
 
+[profile.dev]
+opt-level = 0
+debug = true
+debug-assertions = true
+incremental = true
+codegen-units = 256
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+strip = true
+panic = "abort"
+lto = "fat"
+debug = true
+incremental = false
+
 [package.metadata.release]
 release = false
 
@@ -13,12 +29,19 @@ crate-type = ["cdylib"]
 [dependencies]
 tracing = "0.1"
 tracing-web = "0.1"
-tracing-subscriber = { version = "0.3", features=['time', 'json'] }
-time = { version = "0.3", features = ["wasm-bindgen"]}
+tracing-subscriber = { version = "0.3", features = ['time', 'json'] }
+time = { version = "0.3", features = ["wasm-bindgen"] }
 
-worker = { version = "0.6", features = ['http', 'axum', "timezone", "tokio-postgres"] }
-worker-macros = { version = "0.6", features = ['http'] }
-axum = { version = "0.8", default-features = false, features = ["tracing", "form", "json", "query", "multipart", "macros" ] }
+worker = { version = "0.7.1", features = ['http', 'axum', "timezone", "d1"] }
+worker-macros = { version = "0.7.1", features = ['http'] }
+axum = { version = "0.8", default-features = false, features = [
+    "tracing",
+    "form",
+    "json",
+    "query",
+    "multipart",
+    "macros",
+] }
 tower-http = { version = "0.6", features = ["trace", "cors"] }
 tower = { version = "0.5" }
 
@@ -27,19 +50,32 @@ wasm-bindgen-futures = { version = "0.4.50" }
 futures = { version = "0.3.30" }
 futures-util = "0.3"
 async-trait = "0.1"
-reqwest = {version = "0.12.7", features = ["json"]}
-tokio = { version = "1", features = ["sync", "macros", "io-util", "rt", "time"] }
+reqwest = { version = "0.12.7", features = ["json"] }
+tokio = { version = "1", features = [
+    "sync",
+    "macros",
+    "io-util",
+    "rt",
+    "time",
+] }
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_with = { version = "3", features = [] }
 
 urlencoding = "2"
 chrono = { version = "0.4", features = ["serde", "wasmbind"] }
 cookie = { version = "0.18", features = [] }
 tower-service = "0.3.3"
 console_error_panic_hook = { version = "0.1.7" }
-getrandom = { version = "0.2.16", features = ["js"] }
+getrandom = { version = "0.3.3", features = ["wasm_js"] }
 
-tokio-postgres = { version = "0.7.13", features = ["js"], default-features = false }
-tokio-postgres-utils = "0.2.0"
-sea-query = { version = "0.32.6", default-features = false, features = ["backend-postgres"] }
+sea-query = { version = "0.32.6", default-features = false, features = [
+    "backend-sqlite",
+] }
+imageproc = { version = "0.25", default-features = false }
+
+[dependencies.image]
+version = "0.25"
+default-features = false
+features = ["default-formats"]

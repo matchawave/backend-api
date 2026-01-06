@@ -1,7 +1,7 @@
 use axum::{extract::Request, middleware::Next, response::Response, Extension};
 use cookie::Cookie;
 use reqwest::StatusCode;
-use tracing::error;
+use tracing::{error, warn};
 use worker::Env;
 
 use crate::{
@@ -45,7 +45,7 @@ pub async fn middleware(
                 .get(&DiscordCookie::RefreshToken.to_string())
                 .map(|c| c.value().to_string())
             else {
-                error!("No access token or refresh token found in cookies");
+                warn!("No access token or refresh token found in cookies");
                 return Ok((None, next.run(req).await));
             };
             let Ok((client_id, client_secret)) = get_discord_env(&env) else {

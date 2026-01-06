@@ -2,9 +2,9 @@ use worker::{console_error, Env};
 
 pub mod auth;
 pub mod cookie;
-pub mod database;
 pub mod guilds;
 pub mod user;
+pub mod websocket;
 
 pub fn get_discord_env(env: &Env) -> Result<(String, String), String> {
     let Ok(client_id) = env.var("DISCORD_CLIENT_ID").map(|s| s.to_string()) else {

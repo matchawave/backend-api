@@ -1,10 +1,11 @@
 {
   "devDependencies": {
-    "wrangler": "^4.26.0"
+    "wrangler": "^4.55.0"
   },
   "scripts": {
-		"dev": "wrangler dev",
+    "dev": "wrangler dev",
     "stage": "wrangler deploy -e staging",
-		"deploy": "wrangler deploy -e production"
-	}
+    "deploy": "wrangler deploy -e production",
+    "db": "powershell -Command \"Get-Content ./schemas/schema.sql | sqlite3 temp.db\""
+  }
 }

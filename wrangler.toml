@@ -1,6 +1,6 @@
 name = "backend"
 main = "build/worker/shim.mjs"
-compatibility_date = "2025-07-30"
+compatibility_date = "2025-07-26"
 
 [placement]
 mode = "smart"
@@ -9,50 +9,56 @@ mode = "smart"
 enabled = true
 
 [build]
-command = "cargo install -q worker-build && worker-build --release"
+command = "cargo install -q worker-build && worker-build --dev"
 
-[[hyperdrive]]
-binding = "DATABASE"
-id = "00523c98d9264eaeb79d0ddd8e750de3"
-localConnectionString = "postgres://postgres:ThisIsLocalPassword@localhost:5432/beadatabase?schema=public"
+[[d1_databases]]
+binding = "DB"
+database_name = "testing"
+database_id = "64e87d16-8893-4d06-a438-b64c969e61af"
+
+[[d1_databases]]
+binding = "LEVELS_DB"
+database_name = "stage_levels"
+database_id = "05c09d33-c250-44a2-91f6-7ceb6167920e"
+
+# [[kv_namespaces]]
+# binding = "BOT_TOKENS"
+# preview_id = "bot_tokens_preview"
 
 [env.production]
-hyperdrive = [
-    { binding = "DATABASE", id = "00523c98d9264eaeb79d0ddd8e750de3" }
-]
+
+[env.production.build]
+command = "cargo install -q worker-build && worker-build --release"
 
 [env.production.durable_objects]
-bindings = [
-    { name = "BOTROOM", class_name = "BotRoom" },
-]
+bindings = [{ name = "BOTROOM", class_name = "BotRoom" }]
 [env.production.vars]
-DASHBOARD_URL="https://webpage-production.giloe-dev.workers.dev"
-API_HOST="https://backend-production.giloe-dev.workers.dev"
-DISCORD_CLIENT_ID="1340907937471660142"
+DASHBOARD_URL = "https://webpage-production.giloe-dev.workers.dev"
+API_HOST = "https://backend-production.giloe-dev.workers.dev"
+DISCORD_CLIENT_ID = "1340907937471660142"
 
 [env.staging]
-hyperdrive = [
-    { binding = "DATABASE", id = "00523c98d9264eaeb79d0ddd8e750de3" }
-]
+
+[env.staging.build]
+command = "cargo install -q worker-build && worker-build --release"
+
 [env.staging.durable_objects]
-bindings = [
-    { name = "BOTROOM", class_name = "BotRoom" },
-]
+bindings = [{ name = "BOTROOM", class_name = "BotRoom" }]
 [env.staging.vars]
-DASHBOARD_URL="https://webpage-staging.giloe-dev.workers.dev"
-API_HOST="https://backend-staging.giloe-dev.workers.dev"
-DISCORD_CLIENT_ID="1340907937471660142"
+DASHBOARD_URL = "https://webpage-staging.giloe-dev.workers.dev"
+API_HOST = "https://backend-staging.giloe-dev.workers.dev"
+DISCORD_CLIENT_ID = "1340907937471660142"
 
 [vars]
-DASHBOARD_URL="http://localhost:5173"
-API_HOST="http://127.0.0.1:8787"
-DISCORD_CLIENT_ID="1340907937471660142"
+DASHBOARD_URL = "http://localhost:5173"
+API_HOST = "http://127.0.0.1:8787"
+DISCORD_CLIENT_ID = "1340907937471660142"
 
 [durable_objects]
-bindings = [
-    { name = "BOTROOM", class_name = "BotRoom" },
-]
+bindings = [{ name = "BOTROOM", class_name = "BotRoom" }]
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes  = ["BotRoom"]
+new_sqlite_classes = ["BotRoom"]
+
+# bunx wrangler d1 execute testing --local --file schemas/schema.sql

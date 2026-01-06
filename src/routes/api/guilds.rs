@@ -11,8 +11,6 @@ use crate::{
     state::{server_info::ServerInfoArc, user::RequestedUser},
 };
 
-const DISCORD_ADD_BOT : &str = "https://discord.com/oauth2/authorize?client_id=1340907937471660142&permissions=8&integration_type=0&scope=bot+applications.commands";
-
 pub fn router() -> Router {
     Router::new()
         .route("/", get(get_guilds))

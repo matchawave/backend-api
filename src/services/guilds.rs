@@ -1,6 +1,5 @@
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
-use worker::console_debug;
 
 use crate::DISCORD_API_BASE_URL;
 

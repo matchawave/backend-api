@@ -59,6 +59,7 @@ async fn login(
             DiscordOAuth2Scope::Identify,
             DiscordOAuth2Scope::Guilds,
             DiscordOAuth2Scope::Email,
+            DiscordOAuth2Scope::GuildsMembersRead,
         ],
     };
 

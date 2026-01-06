@@ -1,5 +1,10 @@
 use reqwest::header::USER_AGENT;
-use worker::{console_log, durable_object, Env, Request, Response, Result, State, WebSocketPair};
+use worker::{
+    console_log, durable_object, DurableObject, Env, Request, Response, Result, State,
+    WebSocketPair,
+};
+
+use crate::services::websocket::{PingPayload, SocketReceiveEvent, SocketSendEvent, WsEnvelope};
 
 #[durable_object]
 pub struct BotRoom {
@@ -31,8 +36,6 @@ impl DurableObject for BotRoom {
         let server = ws.server;
 
         if user_agent == "DiscordBot" {
-            // This is a bot
-            console_log!("New bot connected");
             self.state.accept_websocket_with_tags(&server, &["bot"]);
         } else if user_agent.starts_with("DiscordGuild") {
             // This is a dashboard connection fr
@@ -57,8 +60,14 @@ impl DurableObject for BotRoom {
     ) -> Result<()> {
         match message {
             worker::WebSocketIncomingMessage::String(text) => {
-                console_log!("Received text message: {}", text);
-                // Handle text message
+                let envelope = match serde_json::from_str(&text) {
+                    Ok(env) => env,
+                    Err(e) => {
+                        console_log!("Failed to parse message: {}", e);
+                        return Ok(());
+                    }
+                };
+                self.handle_event(envelope).await?;
             }
             worker::WebSocketIncomingMessage::Binary(bits) => {
                 console_log!("Received binary message of length: {}", bits.len());
@@ -120,6 +129,21 @@ impl BotRoom {
             if let Err(e) = ws.send_with_str(message) {
                 console_log!("Failed to send message to guild: {}", e);
             }
+        }
+        Ok(())
+    }
+
+    async fn handle_event(&self, envelope: WsEnvelope<SocketReceiveEvent>) -> Result<()> {
+        match envelope.event {
+            SocketReceiveEvent::BotPing => {
+                if let Some(ping) = envelope.data_as::<PingPayload>() {
+                    let pong_envelope = WsEnvelope::new(SocketSendEvent::BotPong, ping);
+                    if let Ok(pong_message) = serde_json::to_string(&pong_envelope) {
+                        self.send_to_bot(&pong_message)?;
+                    }
+                }
+                // Handle ping event
+            } // Handle other events
         }
         Ok(())
     }
