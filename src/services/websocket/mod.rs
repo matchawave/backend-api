@@ -1,4 +1,5 @@
 mod ping;
+mod shards;
 
 pub use ping::PingPayload;
 
