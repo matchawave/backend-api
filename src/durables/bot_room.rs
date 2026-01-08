@@ -4,7 +4,10 @@ use worker::{
     WebSocketPair,
 };
 
-use crate::services::websocket::{PingPayload, SocketReceiveEvent, SocketSendEvent, WsEnvelope};
+use crate::services::websocket::{
+    handle_shard_update, PingPayload, ShardUpdatePayload, SocketReceiveEvent, SocketSendEvent,
+    WsEnvelope,
+};
 
 #[durable_object]
 pub struct BotRoom {
@@ -67,7 +70,7 @@ impl DurableObject for BotRoom {
                         return Ok(());
                     }
                 };
-                self.handle_event(envelope).await?;
+                self.handle_event(self.env.clone(), envelope).await?;
             }
             worker::WebSocketIncomingMessage::Binary(bits) => {
                 console_log!("Received binary message of length: {}", bits.len());
@@ -133,7 +136,7 @@ impl BotRoom {
         Ok(())
     }
 
-    async fn handle_event(&self, envelope: WsEnvelope<SocketReceiveEvent>) -> Result<()> {
+    async fn handle_event(&self, env: Env, envelope: WsEnvelope<SocketReceiveEvent>) -> Result<()> {
         match envelope.event {
             SocketReceiveEvent::BotPing => {
                 if let Some(ping) = envelope.data_as::<PingPayload>() {
@@ -143,7 +146,12 @@ impl BotRoom {
                     }
                 }
                 // Handle ping event
-            } // Handle other events
+            }
+            SocketReceiveEvent::ShardUpdate => {
+                if let Some(update) = envelope.data_as::<ShardUpdatePayload>() {
+                    handle_shard_update(env, update).await?;
+                }
+            } // Handle shard update event
         }
         Ok(())
     }

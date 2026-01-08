@@ -25,4 +25,12 @@ CREATE TABLE api_keys (
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
-DROP 
+DROP TABLE IF EXISTS shards;
+CREATE TABLE shards (
+    shard_id INTEGER PRIMARY KEY,
+    status TEXT NOT NULL,
+    latency_ms INTEGER NOT NULL DEFAULT -1,
+    servers TEXT NOT NULL, -- JSON array as string
+    members INTEGER NOT NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

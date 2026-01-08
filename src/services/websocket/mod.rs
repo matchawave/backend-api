@@ -2,6 +2,7 @@ mod ping;
 mod shards;
 
 pub use ping::PingPayload;
+pub use shards::{handle_shard_update, ShardUpdatePayload};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
@@ -39,4 +40,5 @@ pub enum SocketSendEvent {
 #[derive(Hash, Eq, PartialEq, Deserialize)]
 pub enum SocketReceiveEvent {
     BotPing,
+    ShardUpdate,
 }

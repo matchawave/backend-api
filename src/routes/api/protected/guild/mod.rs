@@ -35,7 +35,7 @@ async fn get_guild(
         .and_where(Expr::col(Guilds::Id).eq(id.clone()))
         .build(SqliteQueryBuilder);
 
-    let guild = databases.general.exec_returning::<GuildData>(query).await?;
+    let guild = databases.general.select::<GuildData>(query).await?;
     if guild.is_empty() {
         warn!("Guild with ID {} not found", id);
         return Ok(StatusCode::OK.into_response());
@@ -64,7 +64,7 @@ async fn create_new_guild(
         .unwrap()
         .build(SqliteQueryBuilder);
 
-    databases.general.exec(query).await
+    databases.general.insert(query).await
 }
 
 #[worker::send]
@@ -77,6 +77,6 @@ async fn delete_guild(
         .and_where(Expr::col(Guilds::Id).eq(id))
         .value(Guilds::Enabled, Expr::value(0))
         .build(SqliteQueryBuilder);
-    databases.general.exec(query).await?;
+    databases.general.insert(query).await?;
     Ok(())
 }

@@ -56,15 +56,11 @@ pub enum Guilds {
 
 impl Iden for Guilds {
     fn unquoted(&self, s: &mut dyn std::fmt::Write) {
-        write!(
-            s,
-            "{}",
-            match self {
-                Guilds::Table => "guilds",
-                Guilds::Id => "id",
-                Guilds::Enabled => "enabled",
-            }
-        )
-        .unwrap();
+        let value = match self {
+            Guilds::Table => "guilds",
+            Guilds::Id => "id",
+            Guilds::Enabled => "enabled",
+        };
+        write!(s, "{value}",).unwrap();
     }
 }

@@ -44,10 +44,7 @@ async fn get_setting(
         .and_where(Expr::col(GuildSettings::Id).eq(id.clone()))
         .build(SqliteQueryBuilder);
 
-    let settings = databases
-        .general
-        .exec_returning::<GuildSettingsData>(query)
-        .await?;
+    let settings = databases.general.select::<GuildSettingsData>(query).await?;
     if settings.is_empty() {
         warn!("Guild settings for ID {} not found", id);
         return Ok(Json(GuildSettingsData::default(id)));
@@ -110,7 +107,7 @@ async fn update_setting(
 
     let updated_settings = databases
         .general
-        .exec_returning::<GuildSettingsData>(query)
+        .select::<GuildSettingsData>(query)
         .await
         .map_err(|err| {
             error!(
@@ -132,6 +129,6 @@ async fn delete_setting(
         .and_where(Expr::col(GuildSettings::Id).eq(id.clone()))
         .build(SqliteQueryBuilder);
 
-    databases.general.exec(query).await?;
+    databases.general.insert(query).await?;
     Ok(Json(GuildSettingsData::default(id)))
 }
