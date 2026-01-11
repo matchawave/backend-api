@@ -5,4 +5,5 @@
 /build
 /.history
 Cargo.lock
+temp.db
 bun.lock

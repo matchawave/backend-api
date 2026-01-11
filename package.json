@@ -1,12 +1,13 @@
 {
   "devDependencies": {
-    "wrangler": "^4.54.0"
+    "wrangler": "^4.58.0"
   },
   "scripts": {
     "dev": "wrangler dev",
     "stage": "wrangler deploy -e staging",
     "deploy": "wrangler deploy -e production",
-    "db": "powershell -Command \"Get-Content ./schemas/schema.sql | sqlite3 temp.db\"",
+    "db:windows": "powershell -Command \"Get-Content ./schemas/schema.sql | sqlite3 temp.db\"",
+    "db:linux": "cat ./schemas/schema.sql | sqlite3 temp.db",
     "db:apply": "wrangler d1 execute testing --local --file schemas/schema.sql"
   }
 }
