@@ -8,6 +8,7 @@ pub struct GuildSettingsData {
     id: String,
     prefix: String,
     language: String,
+    colour: Option<String>,
 }
 
 impl GuildSettingsData {
@@ -16,6 +17,7 @@ impl GuildSettingsData {
             id,
             prefix: prefix.to_string(),
             language: language.to_string(),
+            colour: None,
         }
     }
     pub fn default(id: String) -> Self {
@@ -23,56 +25,23 @@ impl GuildSettingsData {
             id,
             prefix: "!".to_string(),
             language: SupportedLanguages::English.to_string(),
-        }
-    }
-
-    pub fn id(&self) -> &String {
-        &self.id
-    }
-    pub fn prefix(&self) -> &String {
-        &self.prefix
-    }
-    pub fn language(&self) -> &String {
-        &self.language
-    }
-
-    pub fn set_prefix(&mut self, prefix: String) {
-        self.prefix = prefix;
-    }
-    pub fn set_language(&mut self, language: String) {
-        self.language = language;
-    }
-
-    pub fn to_owned(&self) -> Self {
-        GuildSettingsData {
-            id: self.id.clone(),
-            prefix: self.prefix.clone(),
-            language: self.language.clone(),
+            colour: None,
         }
     }
 }
 
+#[derive(Iden)]
 pub enum GuildSettings {
+    #[iden = "guild_settings"]
     Table,
+    #[iden = "id"]
     Id,
+    #[iden = "prefix"]
     Prefix,
+    #[iden = "language"]
     Language,
-}
-
-impl Iden for GuildSettings {
-    fn unquoted(&self, s: &mut dyn std::fmt::Write) {
-        write!(
-            s,
-            "{}",
-            match self {
-                GuildSettings::Table => "guild_settings",
-                GuildSettings::Id => "id",
-                GuildSettings::Prefix => "prefix",
-                GuildSettings::Language => "language",
-            }
-        )
-        .unwrap();
-    }
+    #[iden = "colour"]
+    Colour,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

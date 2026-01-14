@@ -1,5 +1,5 @@
 use crate::{
-    schema::{GuildData, Guilds},
+    schema::{Guild, GuildData},
     state::database::Databases,
 };
 use axum::{
@@ -29,10 +29,10 @@ async fn get_guild(
     Extension(databases): Extension<Databases>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let query = Query::select()
-        .column(Guilds::Id)
-        .column(Guilds::Enabled)
-        .from(Guilds::Table)
-        .and_where(Expr::col(Guilds::Id).eq(id.clone()))
+        .column(Guild::Id)
+        .column(Guild::Enabled)
+        .from(Guild::Table)
+        .and_where(Expr::col(Guild::Id).eq(id.clone()))
         .build(SqliteQueryBuilder);
 
     let guild = databases.general.select::<GuildData>(query).await?;
@@ -53,11 +53,11 @@ async fn create_new_guild(
     Extension(databases): Extension<Databases>,
 ) -> Result<(), StatusCode> {
     let query = Query::insert()
-        .into_table(Guilds::Table)
-        .columns(vec![Guilds::Id, Guilds::Enabled])
+        .into_table(Guild::Table)
+        .columns(vec![Guild::Id, Guild::Enabled])
         .on_conflict(
-            OnConflict::column(Guilds::Id)
-                .value(Guilds::Enabled, Expr::value(1))
+            OnConflict::column(Guild::Id)
+                .value(Guild::Enabled, Expr::value(1))
                 .to_owned(),
         )
         .values(vec![Expr::value(id), Expr::value(1)])
@@ -73,9 +73,9 @@ async fn delete_guild(
     Extension(databases): Extension<Databases>,
 ) -> Result<(), StatusCode> {
     let query = Query::update()
-        .table(Guilds::Table)
-        .and_where(Expr::col(Guilds::Id).eq(id))
-        .value(Guilds::Enabled, Expr::value(0))
+        .table(Guild::Table)
+        .and_where(Expr::col(Guild::Id).eq(id))
+        .value(Guild::Enabled, Expr::value(0))
         .build(SqliteQueryBuilder);
     databases.general.insert(query).await?;
     Ok(())

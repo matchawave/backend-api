@@ -3,6 +3,9 @@ use sea_query::Iden;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, BoolFromInt};
 
+mod setting;
+pub use setting::*;
+
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GuildData {
@@ -48,19 +51,16 @@ impl IntoResponse for GuildData {
     }
 }
 
-pub enum Guilds {
+#[derive(Iden)]
+pub enum Guild {
+    #[iden = "guilds"]
     Table,
+    #[iden = "id"]
     Id,
+    #[iden = "enabled"]
     Enabled,
-}
-
-impl Iden for Guilds {
-    fn unquoted(&self, s: &mut dyn std::fmt::Write) {
-        let value = match self {
-            Guilds::Table => "guilds",
-            Guilds::Id => "id",
-            Guilds::Enabled => "enabled",
-        };
-        write!(s, "{value}",).unwrap();
-    }
+    #[iden = "added_at"]
+    AddedAt,
+    #[iden = "last_updated"]
+    LastUpdated,
 }

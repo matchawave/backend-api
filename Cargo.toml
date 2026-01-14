@@ -47,6 +47,7 @@ tower = { version = "0.5" }
 
 wasm-bindgen = { version = "0.2.106", features = ["serde"] }
 wasm-bindgen-futures = { version = "0.4.56" }
+rayon-wasm = "1.6.2"
 futures = { version = "0.3.31" }
 futures-util = "0.3"
 async-trait = "0.1"
@@ -72,6 +73,7 @@ getrandom = { version = "0.3.3", features = ["wasm_js"] }
 
 sea-query = { version = "0.32.6", default-features = false, features = [
     "backend-sqlite",
+    "derive",
 ] }
 imageproc = { version = "0.25", default-features = false }
 bincode = "1.3"
