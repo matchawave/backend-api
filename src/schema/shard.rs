@@ -1,4 +1,4 @@
-use sea_query::{Iden, InsertStatement};
+use sea_query::{DeleteStatement, Expr, Iden, InsertStatement, SelectStatement, UpdateStatement};
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -56,6 +56,38 @@ impl ShardSchema {
                 last_updated.into(),
                 started_at.into(),
             ])
+            .to_owned()
+    }
+
+    pub fn get_all() -> SelectStatement {
+        sea_query::Query::select().from(Shards::Table).to_owned()
+    }
+
+    pub fn get_by_id(id: u32) -> SelectStatement {
+        sea_query::Query::select()
+            .from(Shards::Table)
+            .and_where(Expr::col(Shards::Id).eq(id))
+            .to_owned()
+    }
+
+    pub fn get_by_guild(id: String) -> SelectStatement {
+        sea_query::Query::select()
+            .from(Shards::Table)
+            .and_where(Expr::col(Shards::Id).eq(id))
+            .to_owned()
+    }
+
+    pub fn update_status(id: u32, status: String, latency: Option<u32>) -> UpdateStatement {
+        sea_query::Query::update()
+            .table(Shards::Table)
+            .and_where(Expr::col(Shards::Id).eq(id))
+            .to_owned()
+    }
+
+    pub fn delete_by_id(id: u32) -> DeleteStatement {
+        sea_query::Query::delete()
+            .from_table(Shards::Table)
+            .and_where(Expr::col(Shards::Id).eq(id))
             .to_owned()
     }
 }

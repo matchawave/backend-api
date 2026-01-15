@@ -1,11 +1,11 @@
 use axum::{extract::Path, response::IntoResponse, routing::get, Extension, Json, Router};
 use reqwest::StatusCode;
-use sea_query::{Expr, Query, SqliteQueryBuilder};
+use sea_query::{Expr, Query, SelectStatement};
 use tracing::{error, info};
 
 use crate::{
-    schema::{Guild, ShardSchema, Shards},
-    state::database::Database,
+    schema::{Guild, ShardSchema},
+    state::database::{Database, DatabaseExt},
 };
 
 pub fn router() -> Router {
@@ -20,26 +20,13 @@ async fn get_all_shards(
 ) -> Result<Json<Vec<ShardWithGuildCount>>, (StatusCode, String)> {
     info!("Fetching all shard information");
 
-    let columns = vec![Shards::Id, Shards::Status, Shards::Latency, Shards::Members];
-    let query = (Query::select().from(Shards::Table).columns(columns)).build(SqliteQueryBuilder);
-
-    let shards = (database.select::<ShardSchema>(query))
-        .await
+    let shards: Vec<ShardSchema> = (database.execute(ShardSchema::get_all()).await)
         .map_err(|e| (e, format!("Failed to get shards: {}", e)))?;
 
-    let mut queries = Vec::with_capacity(shards.len());
-    for shard in shards.iter() {
-        let query = Query::select()
-            .from(Guild::Table)
-            .columns(vec![Guild::Id, Guild::ShardId])
-            .and_where(Expr::col(Guild::ShardId).eq(shard.id))
-            .and_where(Expr::col(Guild::Enabled).eq(1))
-            .build(SqliteQueryBuilder);
-
-        queries.push(query);
-    }
-
-    let guilds = (database.batch::<ShardedGuild>(queries).await)
+    let queries = ShardedGuild::fetch(shards.len() as u32);
+    let guilds: Vec<Vec<ShardedGuild>> = database
+        .batch(queries)
+        .await
         .map_err(|e| (e, format!("Failed to get guild counts: {}", e)))?;
 
     let counts = guilds
@@ -66,15 +53,8 @@ async fn get_shard_by_guild(
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     info!("Fetching shard information for guild: {}", guild_id);
 
-    let query = Query::select()
-        .from(Guild::Table)
-        .and_where(Expr::col(Guild::Enabled).eq(1))
-        .columns(vec![Guild::Id, Guild::ShardId])
-        .and_where(Expr::col(Guild::Id).eq(&guild_id))
-        .build(SqliteQueryBuilder);
-
-    let shards = database
-        .select::<ShardSchema>(query)
+    let shards: Vec<ShardSchema> = database
+        .execute(ShardSchema::get_by_guild(guild_id.clone()))
         .await
         .map_err(|e| (e, format!("Failed to get shard: {}", e)))?;
 
@@ -101,6 +81,20 @@ async fn get_shard_by_guild(
 struct ShardedGuild {
     guild_id: String,
     shard_id: u32,
+}
+
+impl ShardedGuild {
+    pub fn fetch(shard_count: u32) -> Vec<SelectStatement> {
+        (1..=shard_count)
+            .map(|shard_id| {
+                Query::select()
+                    .from(Guild::Table)
+                    .and_where(Expr::col(Guild::ShardId).eq(shard_id))
+                    .columns(vec![Guild::Id, Guild::ShardId])
+                    .to_owned()
+            })
+            .collect()
+    }
 }
 
 #[derive(serde::Serialize)]
