@@ -4,8 +4,8 @@ use sea_query::{Expr, Query, SqliteQueryBuilder};
 use tracing::{error, info};
 
 use crate::{
-    schema::{ShardData, Shards},
-    state::database::Databases,
+    schema::{Guild, ShardSchema, Shards},
+    state::database::Database,
 };
 
 pub fn router() -> Router {
@@ -16,70 +16,95 @@ pub fn router() -> Router {
 /// Get all stored shard information
 #[worker::send]
 async fn get_all_shards(
-    Extension(databases): Extension<Databases>,
-) -> Result<Json<Vec<ShardData>>, (StatusCode, String)> {
+    Extension(database): Extension<Database>,
+) -> Result<Json<Vec<ShardWithGuildCount>>, (StatusCode, String)> {
     info!("Fetching all shard information");
 
-    let query = Query::select()
-        .from(Shards::Table)
-        .columns(vec![
-            Shards::ShardId,
-            Shards::Status,
-            Shards::LatencyMs,
-            Shards::Servers,
-            Shards::Members,
-        ])
-        .build(SqliteQueryBuilder);
+    let columns = vec![Shards::Id, Shards::Status, Shards::Latency, Shards::Members];
+    let query = (Query::select().from(Shards::Table).columns(columns)).build(SqliteQueryBuilder);
 
-    let shards = (databases.general.select::<ShardData>(query))
+    let shards = (database.select::<ShardSchema>(query))
         .await
         .map_err(|e| (e, format!("Failed to get shards: {}", e)))?;
 
-    Ok(Json(shards))
+    let mut queries = Vec::with_capacity(shards.len());
+    for shard in shards.iter() {
+        let query = Query::select()
+            .from(Guild::Table)
+            .columns(vec![Guild::Id, Guild::ShardId])
+            .and_where(Expr::col(Guild::ShardId).eq(shard.id))
+            .and_where(Expr::col(Guild::Enabled).eq(1))
+            .build(SqliteQueryBuilder);
+
+        queries.push(query);
+    }
+
+    let guilds = (database.batch::<ShardedGuild>(queries).await)
+        .map_err(|e| (e, format!("Failed to get guild counts: {}", e)))?;
+
+    let counts = guilds
+        .into_iter()
+        .map(|g| g.len() as u32)
+        .collect::<Vec<u32>>();
+    let output = shards
+        .into_iter()
+        .zip(counts)
+        .map(|(shard, count)| ShardWithGuildCount {
+            shard,
+            guild_count: count,
+        })
+        .collect::<Vec<ShardWithGuildCount>>();
+
+    Ok(Json(output))
 }
 
 /// Get specific shard information by ID
 #[worker::send]
-async fn get_shard_by_id(
-    Extension(databases): Extension<Databases>,
-    Path(shard_id): Path<u32>,
+async fn get_shard_by_guild(
+    Extension(database): Extension<Database>,
+    Path(guild_id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    info!("Fetching shard information for shard_id: {}", shard_id);
+    info!("Fetching shard information for guild: {}", guild_id);
 
     let query = Query::select()
-        .from(Shards::Table)
-        .columns(vec![
-            Shards::ShardId,
-            Shards::Status,
-            Shards::LatencyMs,
-            Shards::Servers,
-            Shards::Members,
-            Shards::LastUpdated,
-        ])
-        .and_where(Expr::col(Shards::ShardId).eq(shard_id))
+        .from(Guild::Table)
+        .and_where(Expr::col(Guild::Enabled).eq(1))
+        .columns(vec![Guild::Id, Guild::ShardId])
+        .and_where(Expr::col(Guild::Id).eq(&guild_id))
         .build(SqliteQueryBuilder);
 
-    let shards = databases
-        .general
-        .select::<ShardData>(query)
+    let shards = database
+        .select::<ShardSchema>(query)
         .await
         .map_err(|e| (e, format!("Failed to get shard: {}", e)))?;
 
     if shards.is_empty() {
-        info!("Shard {} not found", shard_id);
+        info!("guild {} not found", guild_id);
         return Err((
             StatusCode::NOT_FOUND,
-            format!("Shard with ID {} not found", shard_id),
+            format!("Guild with ID {} not found", guild_id),
         ));
     }
 
     if let Some(shard) = shards.into_iter().next() {
         Ok(Json(shard))
     } else {
-        error!("Multiple shards found for ID {}", shard_id);
+        error!("Multiple shards found for ID {}", guild_id);
         Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Multiple shards found for ID {}", shard_id),
+            format!("Multiple shards found for ID {}", guild_id),
         ))
     }
+}
+
+#[derive(serde::Deserialize)]
+struct ShardedGuild {
+    guild_id: String,
+    shard_id: u32,
+}
+
+#[derive(serde::Serialize)]
+struct ShardWithGuildCount {
+    shard: ShardSchema,
+    guild_count: u32,
 }

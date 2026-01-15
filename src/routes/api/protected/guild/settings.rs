@@ -13,8 +13,8 @@ use tracing::{error, warn};
 use worker::{console_debug, console_log};
 
 use crate::{
-    schema::{GuildSettings, GuildSettingsData, SupportedLanguages},
-    state::database::Databases,
+    schema::{GuildSettings, GuildSettingsSchema, SupportedLanguages},
+    state::database::Database,
 };
 
 pub fn router() -> Router {
@@ -33,8 +33,8 @@ struct ConfigBody {
 #[worker::send]
 async fn get_setting(
     Path(id): Path<String>,
-    Extension(databases): Extension<Databases>,
-) -> Result<Json<GuildSettingsData>, StatusCode> {
+    Extension(database): Extension<Database>,
+) -> Result<Json<GuildSettingsSchema>, StatusCode> {
     console_log!("Getting settings for guild {}", id);
     let query = Query::select()
         .column(GuildSettings::Id)
@@ -44,10 +44,10 @@ async fn get_setting(
         .and_where(Expr::col(GuildSettings::Id).eq(id.clone()))
         .build(SqliteQueryBuilder);
 
-    let settings = databases.general.select::<GuildSettingsData>(query).await?;
+    let settings = database.select::<GuildSettingsSchema>(query).await?;
     if settings.is_empty() {
         warn!("Guild settings for ID {} not found", id);
-        return Ok(Json(GuildSettingsData::default(id)));
+        return Ok(Json(GuildSettingsSchema::default(id)));
     }
     if settings.len() > 1 {
         error!("Multiple guild settings found for ID {}", id);
@@ -60,9 +60,9 @@ async fn get_setting(
 async fn update_setting(
     // Update guild settings, if the guild does not exist, it will be created
     Path(id): Path<String>,
-    Extension(databases): Extension<Databases>,
+    Extension(database): Extension<Database>,
     Json(body): Json<ConfigBody>,
-) -> Result<Json<GuildSettingsData>, (StatusCode, String)> {
+) -> Result<Json<GuildSettingsSchema>, (StatusCode, String)> {
     console_debug!("{:?}", body);
     if let Some(prefix) = &body.prefix {
         if prefix.len() > 10 {
@@ -105,9 +105,8 @@ async fn update_setting(
         .returning_all()
         .build(SqliteQueryBuilder);
 
-    let updated_settings = databases
-        .general
-        .select::<GuildSettingsData>(query)
+    let updated_settings = database
+        .select::<GuildSettingsSchema>(query)
         .await
         .map_err(|err| {
             error!(
@@ -122,13 +121,13 @@ async fn update_setting(
 #[worker::send]
 async fn delete_setting(
     Path(id): Path<String>,
-    Extension(databases): Extension<Databases>,
-) -> Result<Json<GuildSettingsData>, StatusCode> {
+    Extension(database): Extension<Database>,
+) -> Result<Json<GuildSettingsSchema>, StatusCode> {
     let query = Query::delete()
         .from_table(GuildSettings::Table)
         .and_where(Expr::col(GuildSettings::Id).eq(id.clone()))
         .build(SqliteQueryBuilder);
 
-    databases.general.insert(query).await?;
-    Ok(Json(GuildSettingsData::default(id)))
+    database.insert(query).await?;
+    Ok(Json(GuildSettingsSchema::default(id)))
 }

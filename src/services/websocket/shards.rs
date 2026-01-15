@@ -9,7 +9,6 @@ pub struct ShardUpdatePayload {
     pub shard_id: u32,
     pub status: String,
     pub latency_ms: Option<u32>,
-    pub servers: Vec<String>,
     pub members: u32,
 }
 
@@ -19,29 +18,16 @@ pub async fn handle_shard_update(
 ) -> Result<(), worker::Error> {
     // Here you can handle the shard update, e.g., log it or store it in a database
 
-    let general_db = Database::new(env.d1("DB")?);
-    let servers_blob = serde_json::to_string(&payload.servers).unwrap();
+    let general_db: Database = env.d1("DB")?.into();
 
-    let conflict_action = OnConflict::column(Shards::ShardId)
-        .update_columns(vec![
-            Shards::Status,
-            Shards::LatencyMs,
-            Shards::Servers,
-            Shards::Members,
-        ])
+    let conflict_action = OnConflict::column(Shards::Id)
+        .update_columns(vec![Shards::Status, Shards::Latency, Shards::Members])
         .to_owned();
-    let columns = vec![
-        Shards::ShardId,
-        Shards::Status,
-        Shards::LatencyMs,
-        Shards::Servers,
-        Shards::Members,
-    ];
+    let columns = vec![Shards::Id, Shards::Status, Shards::Latency, Shards::Members];
     let values = vec![
         payload.shard_id.into(),
         payload.status.into(),
         payload.latency_ms.into(),
-        servers_blob.into(),
         payload.members.into(),
     ];
 

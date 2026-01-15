@@ -17,10 +17,7 @@ use tracing_subscriber::{
 use tracing_web::{performance_layer, MakeConsoleWriter};
 use worker::{event, Context, Env, HttpRequest, Result};
 
-use crate::state::{
-    database::{Database, Databases},
-    server_info::ServerInfo,
-};
+use crate::state::{database::Database, server_info::ServerInfo};
 pub mod durables;
 pub mod middleware;
 pub mod schema;
@@ -60,16 +57,13 @@ fn cors_layer(webpage: &str) -> CorsLayer {
 async fn fetch(req: HttpRequest, env: Env, ctx: Context) -> Result<Response<Body>> {
     console_error_panic_hook::set_once();
 
-    let databases = Databases {
-        general: Database::new(env.d1("DB")?),
-        levels: Database::new(env.d1("LEVELS_DB")?),
-    };
+    let database: Database = env.d1("DB")?.into();
 
     let server_info = ServerInfo::new(&env)?;
 
     let mut app = Router::new()
         .merge(routes::router())
-        .layer(Extension(databases))
+        .layer(Extension(database))
         .layer(Extension(env))
         .layer(cors_layer(server_info.webpage()))
         .layer(Extension(server_info));

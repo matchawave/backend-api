@@ -37,7 +37,7 @@ pub enum LogTypes {
     Guild,
 }
 
-pub struct GuildLogConfigsData {
+pub struct GuildLogConfigsSchema {
     pub guild_id: String,
     pub log_type: LogTypes,
     pub data: String,

@@ -1,6 +1,6 @@
 use crate::{
-    schema::{Guild, GuildData},
-    state::database::Databases,
+    schema::{Guild, GuildSchema},
+    state::database::Database,
 };
 use axum::{
     extract::Path, http::Response, response::IntoResponse, routing::get, Extension, Json, Router,
@@ -26,7 +26,7 @@ pub fn router() -> Router {
 #[worker::send]
 async fn get_guild(
     Path(id): Path<String>,
-    Extension(databases): Extension<Databases>,
+    Extension(database): Extension<Database>,
 ) -> Result<impl IntoResponse, StatusCode> {
     let query = Query::select()
         .column(Guild::Id)
@@ -35,7 +35,7 @@ async fn get_guild(
         .and_where(Expr::col(Guild::Id).eq(id.clone()))
         .build(SqliteQueryBuilder);
 
-    let guild = databases.general.select::<GuildData>(query).await?;
+    let guild = database.select::<GuildSchema>(query).await?;
     if guild.is_empty() {
         warn!("Guild with ID {} not found", id);
         return Ok(StatusCode::OK.into_response());
@@ -50,33 +50,32 @@ async fn get_guild(
 #[worker::send]
 async fn create_new_guild(
     Path(id): Path<String>,
-    Extension(databases): Extension<Databases>,
+    Extension(database): Extension<Database>,
 ) -> Result<(), StatusCode> {
+    let conflict = OnConflict::column(Guild::Id)
+        .value(Guild::Enabled, Expr::value(1))
+        .to_owned();
     let query = Query::insert()
         .into_table(Guild::Table)
         .columns(vec![Guild::Id, Guild::Enabled])
-        .on_conflict(
-            OnConflict::column(Guild::Id)
-                .value(Guild::Enabled, Expr::value(1))
-                .to_owned(),
-        )
+        .on_conflict(conflict)
         .values(vec![Expr::value(id), Expr::value(1)])
         .unwrap()
         .build(SqliteQueryBuilder);
 
-    databases.general.insert(query).await
+    database.insert(query).await
 }
 
 #[worker::send]
 async fn delete_guild(
     Path(id): Path<String>,
-    Extension(databases): Extension<Databases>,
+    Extension(database): Extension<Database>,
 ) -> Result<(), StatusCode> {
     let query = Query::update()
         .table(Guild::Table)
         .and_where(Expr::col(Guild::Id).eq(id))
         .value(Guild::Enabled, Expr::value(0))
         .build(SqliteQueryBuilder);
-    databases.general.insert(query).await?;
+    database.insert(query).await?;
     Ok(())
 }
