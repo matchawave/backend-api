@@ -1,12 +1,9 @@
-use axum::response::IntoResponse;
 use sea_query::{DeleteStatement, Iden, InsertStatement, UpdateStatement};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, BoolFromInt};
+use serde_with::serde_as;
 
 mod setting;
 pub use setting::*;
-
-use crate::state::database::Database;
 
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,16 +22,6 @@ where
 {
     let v: u8 = Deserialize::deserialize(deserializer)?;
     Ok(v != 0) // Convert 0 to false, any other value to true
-}
-
-impl IntoResponse for GuildSchema {
-    fn into_response(self) -> axum::response::Response {
-        let body = serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string());
-        axum::response::Response::builder()
-            .header("Content-Type", "application/json")
-            .body(axum::body::Body::from(body))
-            .unwrap()
-    }
 }
 
 #[derive(Iden)]
@@ -92,9 +79,29 @@ impl GuildSchema {
             .to_owned()
     }
 
+    pub fn disable<T: Into<String>>(guild_id: T) -> UpdateStatement {
+        sea_query::Query::update()
+            .table(Guild::Table)
+            .value(Guild::Enabled, 0)
+            .and_where(sea_query::Expr::col(Guild::Id).eq(guild_id.into()))
+            .to_owned()
+    }
+
     pub fn delete<T: Into<String>>(guild_id: T) -> DeleteStatement {
         sea_query::Query::delete()
             .from_table(Guild::Table)
+            .and_where(sea_query::Expr::col(Guild::Id).eq(guild_id.into()))
+            .returning_all()
+            .to_owned()
+    }
+
+    pub fn get_all() -> sea_query::SelectStatement {
+        sea_query::Query::select().from(Guild::Table).to_owned()
+    }
+
+    pub fn get_by_id<T: Into<String>>(guild_id: T) -> sea_query::SelectStatement {
+        sea_query::Query::select()
+            .from(Guild::Table)
             .and_where(sea_query::Expr::col(Guild::Id).eq(guild_id.into()))
             .to_owned()
     }

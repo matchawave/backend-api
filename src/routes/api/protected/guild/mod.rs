@@ -1,12 +1,21 @@
+use std::collections::HashMap;
+
 use crate::{
     schema::{Guild, GuildSchema},
-    state::database::Database,
+    state::{
+        database::{Database, DatabaseExt},
+        user::RequestedUser,
+    },
 };
 use axum::{
-    extract::Path, http::Response, response::IntoResponse, routing::get, Extension, Json, Router,
+    extract::{Path, Query},
+    http::Response,
+    response::IntoResponse,
+    routing::get,
+    Extension, Json, Router,
 };
 use reqwest::StatusCode;
-use sea_query::{Expr, OnConflict, Query, SqliteQueryBuilder};
+use sea_query::{Expr, OnConflict, SqliteQueryBuilder};
 use tracing::{error, warn};
 
 mod settings;
@@ -25,23 +34,18 @@ pub fn router() -> Router {
 #[axum::debug_handler]
 #[worker::send]
 async fn get_guild(
-    Path(id): Path<String>,
+    Path(guild_id): Path<String>,
     Extension(database): Extension<Database>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let query = Query::select()
-        .column(Guild::Id)
-        .column(Guild::Enabled)
-        .from(Guild::Table)
-        .and_where(Expr::col(Guild::Id).eq(id.clone()))
-        .build(SqliteQueryBuilder);
-
-    let guild = database.select::<GuildSchema>(query).await?;
+    let guild: Vec<GuildSchema> = database
+        .execute(GuildSchema::get_by_id(guild_id.clone()))
+        .await?;
     if guild.is_empty() {
-        warn!("Guild with ID {} not found", id);
+        warn!("Guild with ID {} not found", guild_id);
         return Ok(StatusCode::OK.into_response());
     }
     if guild.len() > 1 {
-        error!("Multiple guilds found with ID {}", id);
+        error!("Multiple guilds found with ID {}", guild_id);
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
     Ok((StatusCode::OK, Json(guild[0].to_owned())).into_response())
@@ -49,33 +53,36 @@ async fn get_guild(
 
 #[worker::send]
 async fn create_new_guild(
-    Path(id): Path<String>,
+    Path(guild_id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
     Extension(database): Extension<Database>,
+    Extension(requested_user): Extension<RequestedUser>,
 ) -> Result<(), StatusCode> {
-    let conflict = OnConflict::column(Guild::Id)
-        .value(Guild::Enabled, Expr::value(1))
-        .to_owned();
-    let query = Query::insert()
-        .into_table(Guild::Table)
-        .columns(vec![Guild::Id, Guild::Enabled])
-        .on_conflict(conflict)
-        .values(vec![Expr::value(id), Expr::value(1)])
-        .unwrap()
-        .build(SqliteQueryBuilder);
+    if let RequestedUser::Bot(_) = requested_user {
+        let shard_id = if let Some(shard_str) = params.get("shard_id") {
+            shard_str.parse::<u32>().map_err(|_| {
+                warn!("Invalid shard_id parameter: {}", shard_str);
+                StatusCode::BAD_REQUEST
+            })?
+        } else {
+            warn!("shard_id parameter is missing");
+            return Err(StatusCode::BAD_REQUEST);
+        };
 
-    database.insert(query).await
+        database
+            .execute(GuildSchema::insert(guild_id, shard_id))
+            .await?;
+        Ok(())
+    } else {
+        warn!("Non-bot user attempted to create guild entry");
+        Err(StatusCode::FORBIDDEN)
+    }
 }
 
 #[worker::send]
 async fn delete_guild(
-    Path(id): Path<String>,
+    Path(guild_id): Path<String>,
     Extension(database): Extension<Database>,
 ) -> Result<(), StatusCode> {
-    let query = Query::update()
-        .table(Guild::Table)
-        .and_where(Expr::col(Guild::Id).eq(id))
-        .value(Guild::Enabled, Expr::value(0))
-        .build(SqliteQueryBuilder);
-    database.insert(query).await?;
     Ok(())
 }

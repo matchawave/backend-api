@@ -1,5 +1,5 @@
 use sea_query::{DeleteStatement, Expr, Iden, InsertStatement, SelectStatement, UpdateStatement};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ShardSchema {
@@ -30,32 +30,11 @@ pub enum Shards {
 }
 
 impl ShardSchema {
-    pub fn new_schema(
-        id: u32,
-        status: String,
-        latency: Option<u32>,
-        members: u32,
-        last_updated: Option<String>,
-        started_at: Option<String>,
-    ) -> InsertStatement {
+    pub fn new_schema(id: u32, status: String) -> InsertStatement {
         sea_query::Query::insert()
             .into_table(Shards::Table)
-            .columns(vec![
-                Shards::Id,
-                Shards::Status,
-                Shards::Latency,
-                Shards::Members,
-                Shards::LastUpdated,
-                Shards::StartedAt,
-            ])
-            .values_panic(vec![
-                id.into(),
-                status.into(),
-                latency.into(),
-                members.into(),
-                last_updated.into(),
-                started_at.into(),
-            ])
+            .columns(vec![Shards::Id, Shards::Status, Shards::Members])
+            .values_panic(vec![id.into(), status.into(), 0.into()])
             .to_owned()
     }
 
@@ -77,10 +56,20 @@ impl ShardSchema {
             .to_owned()
     }
 
-    pub fn update_status(id: u32, status: String, latency: Option<u32>) -> UpdateStatement {
+    pub fn update_status(
+        id: u32,
+        status: String,
+        latency: Option<u32>,
+        members: u32,
+    ) -> UpdateStatement {
+        let now = chrono::Utc::now().to_rfc3339();
         sea_query::Query::update()
             .table(Shards::Table)
             .and_where(Expr::col(Shards::Id).eq(id))
+            .value(Shards::Status, status)
+            .value(Shards::Latency, latency)
+            .value(Shards::Members, members)
+            .value(Shards::LastUpdated, now)
             .to_owned()
     }
 
@@ -88,6 +77,14 @@ impl ShardSchema {
         sea_query::Query::delete()
             .from_table(Shards::Table)
             .and_where(Expr::col(Shards::Id).eq(id))
+            .returning_all()
+            .to_owned()
+    }
+
+    pub fn delete_all() -> DeleteStatement {
+        sea_query::Query::delete()
+            .from_table(Shards::Table)
+            .returning_all()
             .to_owned()
     }
 }

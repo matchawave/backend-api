@@ -7,7 +7,7 @@ CREATE TABLE shards (
     status TEXT NOT NULL, -- e.g., online, offline, connecting
     latency INTEGER DEFAULT NULL, -- Latency in milliseconds
     members INTEGER NOT NULL, -- Count of members across all guilds in this shard
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

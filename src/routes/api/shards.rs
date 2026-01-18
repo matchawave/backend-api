@@ -1,4 +1,9 @@
-use axum::{extract::Path, response::IntoResponse, routing::get, Extension, Json, Router};
+use axum::{
+    extract::Path,
+    response::IntoResponse,
+    routing::{get, post},
+    Extension, Json, Router,
+};
 use reqwest::StatusCode;
 use sea_query::{Expr, Query, SelectStatement};
 use tracing::{error, info};
@@ -9,8 +14,10 @@ use crate::{
 };
 
 pub fn router() -> Router {
-    Router::new().route("/", get(get_all_shards))
-    // .route("/{shard_id}", get(get_shard_by_id))
+    Router::new()
+        .route("/", get(get_all_shards))
+        // .route("/{shard_id}", get(get_shard_by_id))
+        .route("/started/{count}", post(set_started_shards))
 }
 
 /// Get all stored shard information
@@ -45,6 +52,38 @@ async fn get_all_shards(
     Ok(Json(output))
 }
 
+/// Reset's the database's count of shards
+/// with this, the api server knows how many shards the bot is running
+#[worker::send]
+async fn set_started_shards(
+    Extension(database): Extension<Database>,
+    Path(count): Path<u32>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    info!("Setting started shards to {}", count);
+
+    // Clear existing shards
+    let shards: Vec<ShardSchema> = database
+        .execute(ShardSchema::delete_all())
+        .await
+        .map_err(|e| (e, format!("Failed to clear shards: {}", e)))?;
+
+    info!("Cleared existing shards: {}", shards.len());
+
+    // Insert new shard entries
+    let mut queries = Vec::with_capacity(count as usize);
+    for shard_id in 0..count {
+        let insert_stmt = ShardSchema::new_schema(shard_id, "offline".to_string());
+
+        queries.push(insert_stmt);
+    }
+
+    if let Err(e) = database.batch(queries).await {
+        return Err((e, format!("Failed to insert new shards: {}", e)));
+    }
+    info!("Inserted {} new shards", count);
+
+    Ok(StatusCode::OK)
+}
 /// Get specific shard information by ID
 #[worker::send]
 async fn get_shard_by_guild(

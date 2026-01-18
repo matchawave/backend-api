@@ -1,14 +1,14 @@
 use async_trait::async_trait;
 use reqwest::StatusCode;
 use sea_query::{
-    DeleteStatement, InsertStatement, QueryStatementWriter, SelectStatement, SqliteQueryBuilder,
-    UpdateStatement, Value, Values,
+    DeleteStatement, InsertStatement, QueryStatement, QueryStatementWriter, SelectStatement,
+    SqliteQueryBuilder, UpdateStatement, Value, Values,
 };
 use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use tracing::error;
 use wasm_bindgen::JsValue;
-use worker::{D1Database, D1PreparedStatement};
+use worker::{D1Database, D1PreparedStatement, D1Result};
 
 #[derive(Debug, Clone)]
 pub struct Database(Arc<D1Database>);
@@ -46,10 +46,19 @@ impl Database {
         }
     }
 
-    pub async fn batch_exec<Q>(&self, queries: Vec<Q>) -> Result<(), StatusCode>
-    where
-        Q: QueryStatementWriter,
-    {
+    async fn execute_run<Q: QueryStatementWriter>(&self, query: Q) -> Result<D1Result, StatusCode> {
+        let instance = self.build_query(query)?;
+
+        instance.run().await.map_err(|err| {
+            error!("Database error: {}", err);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
+    }
+
+    async fn batch_run<Q: QueryStatementWriter>(
+        &self,
+        queries: Vec<Q>,
+    ) -> Result<Vec<D1Result>, StatusCode> {
         let mut statements = Vec::with_capacity(queries.len());
 
         for query in queries {
@@ -57,23 +66,28 @@ impl Database {
             statements.push(instance);
         }
 
-        self.0.batch(statements).await.map_err(|err| {
+        let results = self.0.batch(statements).await.map_err(|err| {
             error!("Database error during batch execution: {}", err);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-        Ok(())
+        Ok(results)
     }
 
-    pub async fn batch_mixed<Q: QueryStatementWriter>(
+    pub async fn batch_mixed(
         &self,
-        queries: Vec<Q>,
+        queries: Vec<QueryStatement>,
     ) -> Result<Vec<serde_json::Value>, StatusCode> {
         let mut statements = Vec::with_capacity(queries.len());
 
         for query in queries {
-            let instance = self.build_query(query)?;
-            statements.push(instance);
+            let q = match query {
+                QueryStatement::Select(s) => self.build_query(s)?,
+                QueryStatement::Insert(i) => self.build_query(i)?,
+                QueryStatement::Update(u) => self.build_query(u)?,
+                QueryStatement::Delete(d) => self.build_query(d)?,
+            };
+            statements.push(q);
         }
 
         let results = self.0.batch(statements).await.map_err(|err| {
@@ -97,27 +111,12 @@ impl Database {
 #[async_trait(?Send)]
 impl DatabaseExt<InsertStatement, ()> for Database {
     async fn execute(&self, input: InsertStatement) -> Result<(), StatusCode> {
-        let instance = self.build_query(input)?;
-
-        instance.run().await.map_err(|err| {
-            error!("Database error: {}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        self.execute_run(input).await?;
         Ok(())
     }
 
     async fn batch(&self, inputs: Vec<InsertStatement>) -> Result<Vec<()>, StatusCode> {
-        let mut statements = Vec::with_capacity(inputs.len());
-
-        for query in inputs {
-            let instance = self.build_query(query)?;
-            statements.push(instance);
-        }
-
-        let results = self.0.batch(statements).await.map_err(|err| {
-            error!("Database error during batch execution: {}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        let results = self.batch_run(inputs).await?;
 
         for result in results {
             result.results::<()>().map_err(|err| {
@@ -136,12 +135,7 @@ where
     T: DeserializeOwned,
 {
     async fn execute(&self, input: SelectStatement) -> Result<Vec<T>, StatusCode> {
-        let instance = self.build_query(input)?;
-
-        let result = instance.run().await.map_err(|err| {
-            error!("Database error: {}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        let result = self.execute_run(input).await?;
 
         result.results::<T>().map_err(|err| {
             error!("Database error while fetching results: {}", err);
@@ -150,17 +144,7 @@ where
     }
 
     async fn batch(&self, inputs: Vec<SelectStatement>) -> Result<Vec<Vec<T>>, StatusCode> {
-        let mut statements = Vec::with_capacity(inputs.len());
-
-        for query in inputs {
-            let instance = self.build_query(query)?;
-            statements.push(instance);
-        }
-
-        let results = self.0.batch(statements).await.map_err(|err| {
-            error!("Database error during batch execution: {}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        let results = self.batch_run(inputs).await?;
 
         let mut all_results = Vec::new();
         for result in results {
@@ -179,27 +163,12 @@ where
 #[async_trait(?Send)]
 impl DatabaseExt<UpdateStatement, ()> for Database {
     async fn execute(&self, input: UpdateStatement) -> Result<(), StatusCode> {
-        let instance = self.build_query(input)?;
-
-        instance.run().await.map_err(|err| {
-            error!("Database error: {}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        self.execute_run(input).await?;
         Ok(())
     }
 
     async fn batch(&self, inputs: Vec<UpdateStatement>) -> Result<Vec<()>, StatusCode> {
-        let mut statements = Vec::with_capacity(inputs.len());
-
-        for query in inputs {
-            let instance = self.build_query(query)?;
-            statements.push(instance);
-        }
-
-        let results = self.0.batch(statements).await.map_err(|err| {
-            error!("Database error during batch execution: {}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        let results = self.batch_run(inputs).await?;
 
         for result in results {
             result.results::<()>().map_err(|err| {
@@ -213,38 +182,33 @@ impl DatabaseExt<UpdateStatement, ()> for Database {
 }
 
 #[async_trait(?Send)]
-impl DatabaseExt<DeleteStatement, ()> for Database {
-    async fn execute(&self, input: DeleteStatement) -> Result<(), StatusCode> {
-        let instance = self.build_query(input)?;
+impl<T> DatabaseExt<DeleteStatement, Vec<T>> for Database
+where
+    T: DeserializeOwned,
+{
+    async fn execute(&self, input: DeleteStatement) -> Result<Vec<T>, StatusCode> {
+        let result = self.execute_run(input).await?;
 
-        instance.run().await.map_err(|err| {
-            error!("Database error: {}", err);
+        result.results::<T>().map_err(|err| {
+            error!("Database error while fetching deleted results: {}", err);
             StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-        Ok(())
+        })
     }
 
-    async fn batch(&self, inputs: Vec<DeleteStatement>) -> Result<Vec<()>, StatusCode> {
-        let mut statements = Vec::with_capacity(inputs.len());
+    async fn batch(&self, inputs: Vec<DeleteStatement>) -> Result<Vec<Vec<T>>, StatusCode> {
+        let results = self.batch_run(inputs).await?;
 
-        for query in inputs {
-            let instance = self.build_query(query)?;
-            statements.push(instance);
-        }
-
-        let results = self.0.batch(statements).await.map_err(|err| {
-            error!("Database error during batch execution: {}", err);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
+        let mut all_results = Vec::new();
         for result in results {
-            result.results::<()>().map_err(|err| {
+            let rows = result.results::<T>().map_err(|err| {
                 tracing::error!("Database error while executing batch statement: {}", err);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
+
+            all_results.push(rows);
         }
 
-        Ok(Vec::new())
+        Ok(all_results)
     }
 }
 
@@ -271,13 +235,7 @@ fn convert_params(values: Values) -> Vec<JsValue> {
             Value::Float(Some(f)) => JsValue::from_f64(f as f64),
             Value::Double(Some(f)) => JsValue::from_f64(f),
             // Handle NULL values for all types
-            _ => {
-                tracing::warn!(
-                    "{:?} if a invalid or NULL value was provided for a query parameter",
-                    v
-                );
-                JsValue::NULL
-            }
+            _ => JsValue::NULL,
         };
         params.push(value);
     }

@@ -14,7 +14,7 @@ use worker::{console_debug, console_log};
 
 use crate::{
     schema::{GuildSettings, GuildSettingsSchema, SupportedLanguages},
-    state::database::Database,
+    state::database::{Database, DatabaseExt},
 };
 
 pub fn router() -> Router {
@@ -28,6 +28,7 @@ pub fn router() -> Router {
 struct ConfigBody {
     prefix: Option<String>,
     language: Option<SupportedLanguages>,
+    colour: Option<String>,
 }
 
 #[worker::send]
@@ -36,15 +37,12 @@ async fn get_setting(
     Extension(database): Extension<Database>,
 ) -> Result<Json<GuildSettingsSchema>, StatusCode> {
     console_log!("Getting settings for guild {}", id);
-    let query = Query::select()
-        .column(GuildSettings::Id)
-        .column(GuildSettings::Prefix)
-        .column(GuildSettings::Language)
-        .from(GuildSettings::Table)
-        .and_where(Expr::col(GuildSettings::Id).eq(id.clone()))
-        .build(SqliteQueryBuilder);
+    let query = GuildSettingsSchema::get_by_id(id.clone());
 
-    let settings = database.select::<GuildSettingsSchema>(query).await?;
+    let settings: Vec<GuildSettingsSchema> = database.execute(query).await.map_err(|e| {
+        error!("Failed to get guild settings for ID {}: {}", id, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     if settings.is_empty() {
         warn!("Guild settings for ID {} not found", id);
         return Ok(Json(GuildSettingsSchema::default(id)));
@@ -80,42 +78,29 @@ async fn update_setting(
         }
     }
 
-    let new_prefix = body.prefix.clone().unwrap_or_else(|| "!".to_string());
-    let new_language = body.language.clone().unwrap_or(SupportedLanguages::English);
+    let settings = GuildSettingsSchema {
+        id: id.clone(),
+        prefix: body.prefix.clone().unwrap_or("!".into()),
+        language: (body.language.unwrap_or(SupportedLanguages::English)).to_string(),
+        colour: body.colour.clone(),
+    };
 
-    let query = Query::insert()
-        .into_table(GuildSettings::Table)
-        .columns(vec![
-            GuildSettings::Id,
-            GuildSettings::Prefix,
-            GuildSettings::Language,
-        ])
-        .on_conflict(
-            OnConflict::column(GuildSettings::Id)
-                .update_column(GuildSettings::Prefix)
-                .update_column(GuildSettings::Language)
-                .to_owned(),
+    let query = GuildSettingsSchema::insert(settings.clone()).map_err(|e| {
+        error!("Failed to build insert query for guild {}: {}", id, e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
         )
-        .values(vec![
-            Expr::value(id.clone()),
-            Expr::value(new_prefix),
-            Expr::value(new_language.to_string()),
-        ])
-        .unwrap()
-        .returning_all()
-        .build(SqliteQueryBuilder);
+    })?;
 
-    let updated_settings = database
-        .select::<GuildSettingsSchema>(query)
-        .await
-        .map_err(|err| {
-            error!(
-                "Database error while updating settings for guild {}: {}",
-                id, err
-            );
-            (StatusCode::INTERNAL_SERVER_ERROR, "".into())
-        })?;
-    Ok(Json(updated_settings[0].to_owned()))
+    if let Err(e) = database.execute(query).await {
+        error!("Failed to update guild settings for ID {}: {}", id, e);
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Database error: {}", e),
+        ));
+    }
+    Ok(Json(settings))
 }
 
 #[worker::send]
@@ -123,11 +108,12 @@ async fn delete_setting(
     Path(id): Path<String>,
     Extension(database): Extension<Database>,
 ) -> Result<Json<GuildSettingsSchema>, StatusCode> {
-    let query = Query::delete()
-        .from_table(GuildSettings::Table)
-        .and_where(Expr::col(GuildSettings::Id).eq(id.clone()))
-        .build(SqliteQueryBuilder);
+    let query = GuildSettingsSchema::delete(id.clone());
 
-    database.insert(query).await?;
+    let deleted_settings: Vec<GuildSettingsSchema> =
+        database.execute(query).await.map_err(|e| {
+            error!("Failed to delete guild settings for ID {}: {}", id, e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     Ok(Json(GuildSettingsSchema::default(id)))
 }
