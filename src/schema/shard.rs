@@ -3,12 +3,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ShardSchema {
-    pub id: u32,                      // Shard ID
-    pub status: String,               // e.g., "online", "offline"
-    pub latency: Option<u32>,         // Latency in milliseconds
-    pub members: u32,                 // Count of members across all guilds in this shard
-    pub last_updated: Option<String>, // Timestamp of the last update
-    pub started_at: Option<String>,   // Timestamp when the shard started
+    pub id: u32,                    // Shard ID
+    pub started_at: Option<String>, // Timestamp when the shard started
 }
 
 #[derive(Iden)]
@@ -17,59 +13,34 @@ pub enum Shards {
     Table,
     #[iden = "id"]
     Id,
-    #[iden = "status"]
-    Status,
-    #[iden = "latency"]
-    Latency,
-    #[iden = "members"]
-    Members,
-    #[iden = "last_updated"]
-    LastUpdated,
     #[iden = "started_at"]
     StartedAt,
 }
 
 impl ShardSchema {
-    pub fn new_schema(id: u32, status: String) -> InsertStatement {
+    pub fn new_schema(id: u32) -> InsertStatement {
+        let on_conflict = sea_query::OnConflict::new()
+            .update_column(Shards::StartedAt)
+            .to_owned();
         sea_query::Query::insert()
             .into_table(Shards::Table)
-            .columns(vec![Shards::Id, Shards::Status, Shards::Members])
-            .values_panic(vec![id.into(), status.into(), 0.into()])
+            .columns(vec![Shards::Id])
+            .values_panic(vec![id.into()])
+            .on_conflict(on_conflict)
             .to_owned()
     }
 
     pub fn get_all() -> SelectStatement {
-        sea_query::Query::select().from(Shards::Table).to_owned()
+        sea_query::Query::select()
+            .from(Shards::Table)
+            .columns(vec![Shards::Id, Shards::StartedAt])
+            .to_owned()
     }
 
     pub fn get_by_id(id: u32) -> SelectStatement {
         sea_query::Query::select()
             .from(Shards::Table)
             .and_where(Expr::col(Shards::Id).eq(id))
-            .to_owned()
-    }
-
-    pub fn get_by_guild(id: String) -> SelectStatement {
-        sea_query::Query::select()
-            .from(Shards::Table)
-            .and_where(Expr::col(Shards::Id).eq(id))
-            .to_owned()
-    }
-
-    pub fn update_status(
-        id: u32,
-        status: String,
-        latency: Option<u32>,
-        members: u32,
-    ) -> UpdateStatement {
-        let now = chrono::Utc::now().to_rfc3339();
-        sea_query::Query::update()
-            .table(Shards::Table)
-            .and_where(Expr::col(Shards::Id).eq(id))
-            .value(Shards::Status, status)
-            .value(Shards::Latency, latency)
-            .value(Shards::Members, members)
-            .value(Shards::LastUpdated, now)
             .to_owned()
     }
 

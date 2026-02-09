@@ -5,10 +5,13 @@ use axum::{
     Extension,
 };
 use reqwest::{header::USER_AGENT, StatusCode};
-use tracing::error;
+use tracing::{debug, error, info};
 use worker::Env;
 
-use crate::state::user::RequestedUser;
+use crate::{
+    durables::{bot::BotDurable, DurableFetch},
+    state::user::RequestedUser,
+};
 
 #[worker::send]
 pub async fn handle_websocket(
@@ -22,67 +25,39 @@ pub async fn handle_websocket(
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     };
 
-    let url = req.uri().clone();
-    let Ok(mut new_req) = worker::Request::new(&url.to_string(), worker::Method::Get) else {
-        error!("Failed to create new request");
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    };
-
-    let headers = new_req.headers_mut().expect("Failed to get headers");
-    for (key, value) in req.headers().iter() {
-        if let Err(e) = headers.append(key.as_str(), value.to_str().expect("Invalid header value"))
-        {
-            error!("Failed to append header {}: {}", key, e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    match requested_user {
-        RequestedUser::UserWithToken(user) => {
-            // The id will be the guild ID
-            if let Err(err) =
-                headers.set(USER_AGENT.as_str(), format!("DiscordGuild/{}", id).as_str())
-            {
-                error!("Failed to set header {}: {}", USER_AGENT, err);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        }
-        RequestedUser::Bot(bot) => {
-            if bot.token() != bot_token {
-                error!("Bot token mismatch");
-                return Err(StatusCode::UNAUTHORIZED);
-            }
-            if let Err(err) = headers.set(USER_AGENT.as_str(), "DiscordBot") {
-                error!("Failed to set header {}: {}", USER_AGENT, err);
-                return Err(StatusCode::INTERNAL_SERVER_ERROR);
-            }
-        }
-
-        RequestedUser::User => {
-            error!("User requested without a bot or guild ID");
+    if let RequestedUser::Bot(bot) = &requested_user {
+        if bot.token() != bot_token {
+            error!("Bot token mismatch");
             return Err(StatusCode::UNAUTHORIZED);
         }
+    } else {
+        error!("Requested user is not a bot");
+        return Err(StatusCode::UNAUTHORIZED);
     }
 
-    let Ok(object) = env.durable_object("BOTROOM") else {
-        error!("Failed to get durable object");
+    let mut new_req = crate::copy_request(&req, None).map_err(|e| {
+        error!("Failed to copy request: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if let Err(err) = new_req
+        .headers_mut()
+        .expect("Failed to get headers")
+        .set(USER_AGENT.as_str(), "DiscordBot")
+    {
+        error!("Failed to set header {}: {}", USER_AGENT, err);
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    };
+    }
 
-    let Ok(object_id) = object.id_from_name(&bot_token) else {
-        error!("Failed to get object ID");
-        return Err(StatusCode::NOT_FOUND);
-    };
+    let stub = BotDurable::fetch_object(&env, &bot_token).map_err(|e| {
+        error!("Failed to fetch bot durable object: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let Ok(stub) = object_id.get_stub() else {
-        error!("Failed to get object stub");
-        return Err(StatusCode::NOT_FOUND);
-    };
+    let response = stub.fetch_with_request(new_req).await.map_err(|e| {
+        error!("Failed to fetch from durable object: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let Ok(res) = stub.fetch_with_request(new_req).await else {
-        error!("Failed to fetch durable object");
-        return Err(StatusCode::NOT_FOUND);
-    };
-
-    Ok(res.into())
+    Ok(response.into())
 }

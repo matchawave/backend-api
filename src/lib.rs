@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    http::{HeaderValue, Response},
+    http::{method, HeaderValue, Response},
     Extension, Router,
 };
 use reqwest::{
@@ -15,7 +15,7 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 use tracing_web::{performance_layer, MakeConsoleWriter};
-use worker::{event, Context, Env, HttpRequest, Result};
+use worker::{event, Context, Env, HttpRequest, Request, Result};
 
 use crate::state::{database::Database, server_info::ServerInfo};
 pub mod durables;
@@ -56,9 +56,7 @@ fn cors_layer(webpage: &str) -> CorsLayer {
 #[event(fetch)]
 async fn fetch(req: HttpRequest, env: Env, ctx: Context) -> Result<Response<Body>> {
     console_error_panic_hook::set_once();
-
     let database: Database = env.d1("DB")?.into();
-
     let server_info = ServerInfo::new(&env)?;
 
     let mut app = Router::new()
@@ -69,4 +67,52 @@ async fn fetch(req: HttpRequest, env: Env, ctx: Context) -> Result<Response<Body
         .layer(Extension(server_info));
 
     Ok(app.call(req).await?)
+}
+
+/// Helper macro to count the number of expressions at compile time
+#[macro_export]
+macro_rules! count {
+    () => (0usize);
+    ( $x:tt $($xs:tt)* ) => (1usize + $crate::count!($($xs)*));
+}
+
+pub fn copy_request(
+    req: &axum::http::Request<Body>,
+    new_path: Option<&str>,
+) -> worker::Result<worker::Request> {
+    let new_url = if let Some(new_path) = new_path {
+        let mut url = worker::Url::parse(&req.uri().to_string())?;
+        url.set_path(new_path);
+        url.to_string()
+    } else {
+        req.uri().to_string()
+    };
+    let mut new_req = worker::Request::new(&new_url, convert_method(req.method()))?;
+    copy_headers(req.headers(), new_req.headers_mut()?)?;
+    Ok(new_req)
+}
+
+pub fn copy_headers(from: &axum::http::HeaderMap, to: &mut worker::Headers) -> worker::Result<()> {
+    for (key, value) in from.into_iter() {
+        let key = key.as_str();
+        let value = value.to_str().map_err(|e| {
+            worker::Error::RustError(format!("Invalid header value for {}: {}", key, e))
+        })?;
+        to.append(key, value)?;
+    }
+    Ok(())
+}
+
+pub fn convert_method(method: &axum::http::Method) -> worker::Method {
+    match *method {
+        axum::http::Method::GET => worker::Method::Get,
+        axum::http::Method::POST => worker::Method::Post,
+        axum::http::Method::PUT => worker::Method::Put,
+        axum::http::Method::DELETE => worker::Method::Delete,
+        axum::http::Method::HEAD => worker::Method::Head,
+        axum::http::Method::OPTIONS => worker::Method::Options,
+        axum::http::Method::CONNECT => worker::Method::Connect,
+        axum::http::Method::TRACE => worker::Method::Trace,
+        _ => worker::Method::Get, // Default to GET for unsupported methods
+    }
 }

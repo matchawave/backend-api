@@ -42,6 +42,9 @@ pub enum Guild {
 
 impl GuildSchema {
     pub fn insert<T: Into<String>>(guild_id: T, shard_id: u32) -> InsertStatement {
+        let on_conflict = sea_query::OnConflict::new()
+            .update_columns(vec![Guild::Enabled, Guild::ShardId, Guild::LastUpdated])
+            .to_owned();
         sea_query::Query::insert()
             .into_table(Guild::Table)
             .columns(vec![Guild::Id, Guild::Enabled, Guild::ShardId])
@@ -50,6 +53,7 @@ impl GuildSchema {
                 1.into(), // Enabled by default
                 shard_id.into(),
             ])
+            .on_conflict(on_conflict)
             .to_owned()
     }
 
@@ -103,6 +107,22 @@ impl GuildSchema {
         sea_query::Query::select()
             .from(Guild::Table)
             .and_where(sea_query::Expr::col(Guild::Id).eq(guild_id.into()))
+            .to_owned()
+    }
+
+    pub fn get_by_ids<T: Into<String>>(guilds: Vec<T>) -> sea_query::SelectStatement {
+        let guild_ids: Vec<String> = guilds.into_iter().map(|g| g.into()).collect();
+        sea_query::Query::select()
+            .from(Guild::Table)
+            .and_where(sea_query::Expr::col(Guild::Id).is_in(guild_ids))
+            .to_owned()
+    }
+
+    pub fn get_shard<T: Into<String>>(guild_id: T) -> sea_query::SelectStatement {
+        sea_query::Query::select()
+            .from(Guild::Table)
+            .and_where(sea_query::Expr::col(Guild::Id).eq(guild_id.into()))
+            .columns(vec![Guild::ShardId])
             .to_owned()
     }
 }

@@ -5,6 +5,15 @@ pub enum RequestedUser {
     UserWithToken(User),
 }
 
+impl RequestedUser {
+    pub fn is_bot(&self) -> bool {
+        matches!(self, RequestedUser::Bot(_))
+    }
+    pub fn is_user(&self) -> bool {
+        matches!(self, RequestedUser::User)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct User {
     access_token: String,

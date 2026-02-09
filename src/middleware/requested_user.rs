@@ -1,5 +1,6 @@
 use crate::state::user::{Bot, RequestedUser};
 use axum::{extract::Request, http::HeaderMap, middleware::Next, response::Response};
+use serde::de;
 use tracing::debug;
 
 pub async fn middleware(headers: HeaderMap, mut req: Request, next: Next) -> Response {

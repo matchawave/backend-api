@@ -16,10 +16,6 @@ binding = "DB"
 database_name = "testing"
 database_id = "64e87d16-8893-4d06-a438-b64c969e61af"
 
-[[d1_databases]]
-binding = "LEVELS_DB"
-database_name = "stage_levels"
-database_id = "05c09d33-c250-44a2-91f6-7ceb6167920e"
 
 # [[kv_namespaces]]
 # binding = "BOT_TOKENS"
@@ -31,7 +27,7 @@ database_id = "05c09d33-c250-44a2-91f6-7ceb6167920e"
 command = "cargo install -q worker-build && worker-build --release"
 
 [env.production.durable_objects]
-bindings = [{ name = "BOTROOM", class_name = "BotRoom" }]
+bindings = [{ name = "BOTROOM", class_name = "BotDurable" }]
 [env.production.vars]
 DASHBOARD_URL = "https://webpage-production.giloe-dev.workers.dev"
 API_HOST = "https://backend-production.giloe-dev.workers.dev"
@@ -43,7 +39,7 @@ DISCORD_CLIENT_ID = "1340907937471660142"
 command = "cargo install -q worker-build && worker-build --release"
 
 [env.staging.durable_objects]
-bindings = [{ name = "BOTROOM", class_name = "BotRoom" }]
+bindings = [{ name = "BOTROOM", class_name = "BotDurable" }]
 [env.staging.vars]
 DASHBOARD_URL = "https://webpage-staging.giloe-dev.workers.dev"
 API_HOST = "https://backend-staging.giloe-dev.workers.dev"
@@ -55,10 +51,10 @@ API_HOST = "http://127.0.0.1:8787"
 DISCORD_CLIENT_ID = "1340907937471660142"
 
 [durable_objects]
-bindings = [{ name = "BOTROOM", class_name = "BotRoom" }]
+bindings = [{ name = "BOTROOM", class_name = "BotDurable" }]
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["BotRoom"]
+new_sqlite_classes = ["BotDurable"]
 
 # bunx wrangler d1 execute testing --local --file schemas/schema.sql

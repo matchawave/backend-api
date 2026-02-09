@@ -1,23 +1,18 @@
 -- sqlite
 PRAGMA foreign_keys = ON;
-
 DROP TABLE IF EXISTS shards;
 CREATE TABLE shards (
     id INTEGER PRIMARY KEY, -- Shard ID
-    status TEXT NOT NULL, -- e.g., online, offline, connecting
-    latency INTEGER DEFAULT NULL, -- Latency in milliseconds
-    members INTEGER NOT NULL, -- Count of members across all guilds in this shard
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    started_at TIMESTAMP DEFAULT (datetime('now', 'utc'))
 );
 
 DROP TABLE IF EXISTS guilds;
 CREATE TABLE guilds (
     id TEXT PRIMARY KEY, -- Guild ID
-    enabled INTEGER DEFAULT 0 CHECK (enabled IN (0, 1)), -- 0: FALSE 1: TRUE 
+    enabled BOOLEAN NOT NULL DEFAULT 1, -- Whether the bot is active in this guild
     shard_id INTEGER NOT NULL,
-    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- When the bot was added to the guild
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- When the guild activity was last recorded
+    added_at TIMESTAMP DEFAULT (datetime('now', 'utc')), -- When the bot was added to the guild
+    last_updated TIMESTAMP DEFAULT (datetime('now', 'utc')), -- When the guild activity was last recorded
     FOREIGN KEY (shard_id) REFERENCES shards(id) ON DELETE CASCADE
 );
 
@@ -35,8 +30,8 @@ CREATE TABLE guild_log_configs (
     guild_id TEXT NOT NULL,
     log_type TEXT NOT NULL, -- Type of log (e.g., message, voice, moderation)
     data TEXT NOT NULL, -- JSON data as string
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, log_type)
 );
@@ -52,8 +47,8 @@ CREATE TABLE voice_configs(
     user_limit INTEGER DEFAULT NULL,
     locked TEXT DEFAULT NULL,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
 
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
 
@@ -66,8 +61,8 @@ CREATE TABLE voice_masters(
     masters TEXT NOT NULL, -- Channel ID for voice masters
     configs TEXT NOT NULL, -- Channel ID for voice configs
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
@@ -77,8 +72,8 @@ CREATE TABLE command_aliases(
     command TEXT NOT NULL,
     alias TEXT NOT NULL,
     args TEXT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, command, alias)
 );
