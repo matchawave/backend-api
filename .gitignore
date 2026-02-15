@@ -6,4 +6,5 @@
 /.history
 Cargo.lock
 temp.db
+schemas/schema_combined.sql
 bun.lock

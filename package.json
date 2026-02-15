@@ -6,8 +6,8 @@
     "dev": "wrangler dev",
     "stage": "wrangler deploy -e staging",
     "deploy": "wrangler deploy -e production",
-    "db:windows": "powershell -Command \"Get-Content ./schemas/schema.sql | sqlite3 temp.db\"",
-    "db:linux": "cat ./schemas/schema.sql | sqlite3 temp.db",
-    "db:apply": "wrangler d1 execute testing --local --file schemas/schema.sql"
+    "db:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/build-db.ps1",
+    "db:linux": "bash ./scripts/build-db.sh",
+    "db:apply": "wrangler d1 execute testing --local --file schemas/schema_combined.sql"
   }
 }

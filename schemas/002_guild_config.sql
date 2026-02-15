@@ -1,21 +1,4 @@
--- sqlite
-PRAGMA foreign_keys = ON;
-DROP TABLE IF EXISTS shards;
-CREATE TABLE shards (
-    id INTEGER PRIMARY KEY, -- Shard ID
-    started_at TIMESTAMP DEFAULT (datetime('now', 'utc'))
-);
-
-DROP TABLE IF EXISTS guilds;
-CREATE TABLE guilds (
-    id TEXT PRIMARY KEY, -- Guild ID
-    enabled BOOLEAN NOT NULL DEFAULT 1, -- Whether the bot is active in this guild
-    shard_id INTEGER NOT NULL,
-    added_at TIMESTAMP DEFAULT (datetime('now', 'utc')), -- When the bot was added to the guild
-    last_updated TIMESTAMP DEFAULT (datetime('now', 'utc')), -- When the guild activity was last recorded
-    FOREIGN KEY (shard_id) REFERENCES shards(id) ON DELETE CASCADE
-);
-
+-- Guild Configuration Tables --
 DROP TABLE IF EXISTS guild_settings;
 CREATE TABLE guild_settings (
     guild_id TEXT PRIMARY KEY,
@@ -38,8 +21,7 @@ CREATE TABLE guild_log_configs (
 
 DROP TABLE IF EXISTS voice_configs;
 CREATE TABLE voice_configs(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL,
+    user_id TEXT DEFAULT NULL, -- NULL for guild configs
     guild_id TEXT DEFAULT NULL, -- NULL for non-guild config
 
     name TEXT DEFAULT NULL,
@@ -51,8 +33,9 @@ CREATE TABLE voice_configs(
     updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
 
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 
-    UNIQUE(user_id, guild_id)
+    PRIMARY KEY (user_id, guild_id)
 );
 
 DROP TABLE IF EXISTS voice_masters;

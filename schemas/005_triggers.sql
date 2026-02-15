@@ -1,0 +1,41 @@
+-- -- Triggers --
+-- -- Triggers to automatically create users if they don't exist
+-- CREATE TRIGGER IF NOT EXISTS auto_create_user_voice_configs
+-- BEFORE INSERT ON voice_configs
+-- FOR EACH ROW
+-- WHEN NEW.user_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id)
+-- BEGIN
+--     INSERT INTO users (id) VALUES (NEW.user_id);
+-- END;
+
+-- CREATE TRIGGER IF NOT EXISTS auto_create_user_afk_statuses
+-- BEFORE INSERT ON afk_statuses
+-- FOR EACH ROW
+-- WHEN NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id)
+-- BEGIN
+--     INSERT INTO users (id) VALUES (NEW.user_id);
+-- END;
+
+-- CREATE TRIGGER IF NOT EXISTS auto_create_user_afk_configs
+-- BEFORE INSERT ON afk_configs
+-- FOR EACH ROW
+-- WHEN NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id)
+-- BEGIN
+--     INSERT INTO users (id) VALUES (NEW.user_id);
+-- END;
+
+-- CREATE TRIGGER IF NOT EXISTS auto_create_user_user_levels
+-- BEFORE INSERT ON user_levels
+-- FOR EACH ROW
+-- WHEN NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id)
+-- BEGIN
+--     INSERT INTO users (id) VALUES (NEW.user_id);
+-- END;
+
+-- CREATE TRIGGER IF NOT EXISTS auto_create_user_user_level_profiles
+-- BEFORE INSERT ON user_level_profiles
+-- FOR EACH ROW
+-- WHEN NOT EXISTS (SELECT 1 FROM users WHERE id = NEW.user_id)
+-- BEGIN
+--     INSERT INTO users (id) VALUES (NEW.user_id);
+-- END;
