@@ -16,6 +16,7 @@ use axum::{
 };
 use reqwest::StatusCode;
 use sea_query::{Expr, OnConflict, SqliteQueryBuilder};
+use serde::Deserialize;
 use tracing::{error, warn};
 
 mod settings;
@@ -58,35 +59,21 @@ async fn get_guild(
     Ok((StatusCode::OK, Json(guild[0].to_owned())).into_response())
 }
 
+#[derive(Debug, Deserialize)]
+struct NewGuildQuery {
+    shard_id: u32,
+}
+
 #[worker::send]
 async fn create_new_guild(
     Path(guild_id): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
+    Query(params): Query<NewGuildQuery>,
     Extension(database): Extension<Database>,
     Extension(requested_user): Extension<RequestedUser>,
 ) -> Result<(), (StatusCode, String)> {
-    if !requested_user.is_bot() {
-        warn!("Non-bot user attempted to create guild entry");
-        return Err((
-            StatusCode::FORBIDDEN,
-            "Only registered bots can create guild entries".to_string(),
-        ));
-    }
-    let shard_id = if let Some(shard_str) = params.get("shard_id") {
-        shard_str.parse::<u32>().map_err(|_| {
-            warn!("Invalid shard_id parameter: {}", shard_str);
-            (
-                StatusCode::BAD_REQUEST,
-                "Invalid shard_id parameter".to_string(),
-            )
-        })?
-    } else {
-        warn!("shard_id parameter is missing");
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "shard_id parameter is missing".to_string(),
-        ));
-    };
+    requested_user.bot_protection("Create Guild")?;
+
+    let shard_id = params.shard_id;
 
     if let Err(e) = database
         .execute(GuildSchema::insert(guild_id, shard_id))
@@ -107,13 +94,7 @@ async fn disable_guild(
     Extension(database): Extension<Database>,
     Extension(requested_user): Extension<RequestedUser>,
 ) -> Result<(), (StatusCode, String)> {
-    if !requested_user.is_bot() {
-        warn!("Non-bot user attempted to disable guild entry");
-        return Err((
-            StatusCode::FORBIDDEN,
-            "Only registered bots can disable guild entries".to_string(),
-        ));
-    }
+    requested_user.bot_protection("Disable Guild")?;
 
     if let Err(e) = database.execute(GuildSchema::disable(guild_id)).await {
         warn!("Failed to disable guild entry: {:?}", e);
@@ -131,13 +112,7 @@ pub async fn delete_guild(
     Extension(database): Extension<Database>,
     Extension(requested_user): Extension<RequestedUser>,
 ) -> Result<(), (StatusCode, String)> {
-    if !requested_user.is_bot() {
-        warn!("Non-bot user attempted to delete guild entry");
-        return Err((
-            StatusCode::FORBIDDEN,
-            "Only registered bots can delete guild entries".to_string(),
-        ));
-    }
+    requested_user.bot_protection("Delete Guild")?;
     let _guilds: Vec<GuildSchema> = (database
         .execute(GuildSchema::get_by_id(guild_id.clone()))
         .await)

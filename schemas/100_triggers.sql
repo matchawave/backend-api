@@ -1,4 +1,3 @@
--- -- Triggers --
 -- -- Triggers to automatically create users if they don't exist
 -- CREATE TRIGGER IF NOT EXISTS auto_create_user_voice_configs
 -- BEFORE INSERT ON voice_configs

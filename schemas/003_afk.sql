@@ -1,4 +1,3 @@
--- AFK Tables --
 DROP TABLE IF EXISTS afk_statuses;
 CREATE TABLE afk_statuses(
     user_id TEXT NOT NULL, -- User ID

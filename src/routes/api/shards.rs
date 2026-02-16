@@ -9,13 +9,18 @@ use tracing::{error, info, warn};
 use worker::{Env, Stub};
 
 use crate::{
+    check_snowflake,
     durables::{
         bot::{BotDurable, ShardUpdatePayload},
         DurableFetch,
     },
     routes::api::shards,
     schema::{Guild, GuildSchema, ShardSchema},
-    state::database::{Database, DatabaseExt},
+    snowflake_protection,
+    state::{
+        database::{Database, DatabaseExt},
+        user::RequestedUser,
+    },
 };
 
 pub fn router() -> Router {
@@ -100,7 +105,9 @@ async fn get_shards(req: &Request, bot_durable: Stub) -> Result<Vec<ShardUpdateP
 async fn set_started_shards(
     Extension(database): Extension<Database>,
     Path(count): Path<u32>,
+    Extension(requested_user): Extension<RequestedUser>,
 ) -> Result<(), (StatusCode, String)> {
+    requested_user.bot_protection("Set Started Shards")?;
     info!("Setting started shards to {}", count);
     // ! NEVER DELETE PRE-EXISTING SHARDS, ONLY UPDATE THEM, OTHERWISE YOU LOSE GUILDS ASSOCIATED WITH THOSE SHARDS
 
@@ -127,25 +134,18 @@ async fn set_started_shards(
 #[axum::debug_handler]
 async fn get_shard_by_guild(
     Extension(database): Extension<Database>,
-    Path(guild): Path<String>,
+    Path(guild_id): Path<String>,
 ) -> Result<Json<Vec<Shard>>, (StatusCode, String)> {
-    info!("Fetching shard information for guild: {}", guild);
+    info!("Fetching shard information for guild: {}", guild_id);
 
     // Make sure the guild ID is a valid Discord snowflake
-    let snowflake_regex = regex::Regex::new(r"^\d{17,19}$").unwrap();
-    if !snowflake_regex.is_match(&guild) {
-        warn!("Invalid guild ID format: {}", guild);
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Invalid guild ID format".to_string(),
-        ));
-    }
+    snowflake_protection!(guild_id);
 
     let shards: Vec<Shard> = (database
-        .execute(GuildSchema::get_shard(guild.clone()))
+        .execute(GuildSchema::get_shard(guild_id.clone()))
         .await)
         .map_err(|e| {
-            warn!("Failed to get shard for guild {}: {:?}", guild, e);
+            warn!("Failed to get shard for guild {}: {:?}", guild_id, e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to get shard for guild".to_string(),
@@ -153,7 +153,7 @@ async fn get_shard_by_guild(
         })?;
 
     if shards.is_empty() {
-        warn!("No shard found for guild: {}", guild);
+        warn!("No shard found for guild: {}", guild_id);
         return Err((
             StatusCode::NOT_FOUND,
             "No shard found for the specified guild".to_string(),

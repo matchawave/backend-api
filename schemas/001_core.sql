@@ -1,7 +1,3 @@
--- sqlite
-PRAGMA foreign_keys = ON;
-
--- Core Tables --
 DROP TABLE IF EXISTS shards;
 CREATE TABLE shards (
     id INTEGER PRIMARY KEY, -- Shard ID
@@ -10,8 +6,11 @@ CREATE TABLE shards (
 
 DROP TABLE IF EXISTS users;
 CREATE TABLE users (
-    id TEXT PRIMARY KEY, -- User ID
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc'))
+    id TEXT NOT NULL, -- User ID
+    guild_id TEXT NOT NULL, -- Guild ID the user is associated with
+    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    PRIMARY KEY (id, guild_id),
+    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
 DROP TABLE IF EXISTS guilds;

@@ -31,7 +31,18 @@ if (Test-Path $CombinedSchema) {
 
 # First, combine all schema files into schema_combined.sql
 Write-Host "Combining schemas into: $CombinedSchema"
-Get-Content $schemaFiles | Out-File -FilePath $CombinedSchema -Encoding UTF8
+
+# Create combined schema with file origin comments
+$combinedContent = @()
+$combinedContent += "-- sqlite"
+$combinedContent += "PRAGMA foreign_keys = ON;"
+foreach ($file in $schemaFiles) {
+    $fileName = (Split-Path $file -Leaf) -replace '\.sql$', ''
+    $combinedContent += "-- $fileName ---"
+    $combinedContent += Get-Content $file
+    $combinedContent += ""
+}
+$combinedContent | Out-File -FilePath $CombinedSchema -Encoding UTF8
 
 if (-not (Test-Path $CombinedSchema)) {
     Write-Error "Failed to create combined schema file"

@@ -5,7 +5,7 @@ OUTPUT_DB="${1:-temp.db}"
 COMBINED_SCHEMA="${2:-./schemas/schema_combined.sql}"
 
 # Get all .sql files in schemas directory, excluding specific files
-SCHEMA_FILES=($(find ./schemas -name "*.sql" -not -name "schema.sql" -not -name "schema_combined.sql" | sort))
+SCHEMA_FILES=($(find ./schemas -name "*.sql" -not -name "schema_combined.sql" | sort))
 
 if [ ${#SCHEMA_FILES[@]} -eq 0 ]; then
     echo "Error: No schema files found in ./schemas directory" >&2
@@ -30,7 +30,18 @@ fi
 
 # First, combine all schema files into schema_combined.sql
 echo "Combining schemas into: $COMBINED_SCHEMA"
-cat "${SCHEMA_FILES[@]}" > "$COMBINED_SCHEMA"
+
+# Create combined schema with file origin comments
+> "$COMBINED_SCHEMA"  # Clear the file
+echo "-- sqlite" >> "$COMBINED_SCHEMA"
+echo "PRAGMA foreign_keys = ON;" >> "$COMBINED_SCHEMA"
+echo "" >> "$COMBINED_SCHEMA"
+for file in "${SCHEMA_FILES[@]}"; do
+    filename=$(basename "$file" .sql)
+    echo "-- $filename ---" >> "$COMBINED_SCHEMA"
+    cat "$file" >> "$COMBINED_SCHEMA"
+    echo "" >> "$COMBINED_SCHEMA"
+done
 
 if [ ! -f "$COMBINED_SCHEMA" ]; then
     echo "Error: Failed to create combined schema file" >&2

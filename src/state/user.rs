@@ -1,3 +1,6 @@
+use reqwest::StatusCode;
+use tracing::warn;
+
 #[derive(Debug, Clone)]
 pub enum RequestedUser {
     User,
@@ -11,6 +14,17 @@ impl RequestedUser {
     }
     pub fn is_user(&self) -> bool {
         matches!(self, RequestedUser::User)
+    }
+
+    pub fn bot_protection(&self, status: &str) -> Result<(), (StatusCode, String)> {
+        if !self.is_bot() {
+            warn!("Non-bot user attempted to access {} endpoint", status);
+            return Err((
+                StatusCode::FORBIDDEN,
+                format!("{} is only available to registered bots", status),
+            ));
+        }
+        Ok(())
     }
 }
 

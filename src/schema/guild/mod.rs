@@ -1,27 +1,30 @@
+use super::deserialize_bool;
 use sea_query::{DeleteStatement, Iden, InsertStatement, UpdateStatement};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+mod configuration;
+mod misc;
+mod permission;
 mod setting;
+mod utility;
+
+pub use configuration::*;
+
+pub use misc::*;
+pub use permission::*;
 pub use setting::*;
+pub use utility::*;
 
 #[serde_as]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GuildSchema {
     pub id: String,
-    #[serde(deserialize_with = "deserialize_enabled")]
+    #[serde(deserialize_with = "deserialize_bool")]
     pub enabled: bool, // Indicates if the guild is enabled (1) or disabled (0)
     pub shard_id: u32,
     pub last_updated: String,
     pub started_at: String,
-}
-
-fn deserialize_enabled<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let v: u8 = Deserialize::deserialize(deserializer)?;
-    Ok(v != 0) // Convert 0 to false, any other value to true
 }
 
 #[derive(Iden)]

@@ -1,4 +1,4 @@
-use sea_query::{DeleteStatement, Expr, Iden, InsertStatement, SelectStatement, UpdateStatement};
+use sea_query::{DeleteStatement, Expr, Iden, InsertStatement, SelectStatement};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

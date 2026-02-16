@@ -1,4 +1,3 @@
--- Leveling Tables --
 DROP TABLE IF EXISTS user_levels;
 CREATE TABLE user_levels(
     user_id TEXT NOT NULL, -- User ID
@@ -36,22 +35,22 @@ CREATE TABLE level_configs(
 DROP TABLE IF EXISTS level_roles;
 CREATE TABLE level_roles(
     guild_id TEXT NOT NULL, -- Guild ID
-    level INTEGER NOT NULL, -- Level required for the role
     role_id TEXT NOT NULL, -- Role ID to assign
+    level INTEGER NOT NULL, -- Level required for the role
     stackable BOOLEAN NOT NULL DEFAULT 1, -- Whether the role is stackable with other level roles
     created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
-    PRIMARY KEY (guild_id, level)
+    PRIMARY KEY (guild_id, role_id)
 );
 
 DROP TABLE IF EXISTS level_xp_multipliers;
 CREATE TABLE level_xp_multipliers(
     guild_id TEXT NOT NULL, -- Guild ID
     multiplier REAL NOT NULL DEFAULT 1.0, -- XP multiplier for the guild
-    channel_id TEXT DEFAULT NULL, -- Channel ID for channel-specific multiplier, NULL for guild-wide multiplier
+    role_id TEXT DEFAULT NULL, -- Role ID for role-specific multiplier, NULL for guild-wide multiplier
     created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
-    PRIMARY KEY (guild_id, channel_id)
+    PRIMARY KEY (guild_id, role_id)
 );

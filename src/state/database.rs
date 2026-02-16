@@ -226,46 +226,104 @@ impl IntoQueryStatement for DeleteStatement {
     }
 }
 
+pub struct QueryBuilder(Vec<QueryStatement>);
+
+impl QueryBuilder {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn add(mut self, stmt: impl IntoQueryStatement) -> Self {
+        self.0.push(stmt.into_query_statement());
+        self
+    }
+}
+
+impl From<QueryBuilder> for Vec<QueryStatement> {
+    fn from(builder: QueryBuilder) -> Self {
+        builder.0
+    }
+}
+
+impl From<QueryBuilder> for Vec<InsertStatement> {
+    fn from(builder: QueryBuilder) -> Self {
+        builder
+            .0
+            .into_iter()
+            .filter_map(|stmt| {
+                if let QueryStatement::Insert(insert) = stmt {
+                    Some(insert)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+impl From<QueryBuilder> for Vec<SelectStatement> {
+    fn from(builder: QueryBuilder) -> Self {
+        builder
+            .0
+            .into_iter()
+            .filter_map(|stmt| {
+                if let QueryStatement::Select(select) = stmt {
+                    Some(select)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+impl From<QueryBuilder> for Vec<UpdateStatement> {
+    fn from(builder: QueryBuilder) -> Self {
+        builder
+            .0
+            .into_iter()
+            .filter_map(|stmt| {
+                if let QueryStatement::Update(update) = stmt {
+                    Some(update)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+impl From<QueryBuilder> for Vec<DeleteStatement> {
+    fn from(builder: QueryBuilder) -> Self {
+        builder
+            .0
+            .into_iter()
+            .filter_map(|stmt| {
+                if let QueryStatement::Delete(delete) = stmt {
+                    Some(delete)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
 /// Macro to create a Vec<QueryStatement> from mixed statement types
 /// Usage: queries![insert_stmt, select_stmt, update_stmt, delete_stmt]
+/// Macro that creates a QueryBuilder which can convert to different vector types
 #[macro_export]
 macro_rules! queries {
     () => {
-        Vec::<QueryStatement>::new()
+        $crate::state::database::QueryBuilder::new()
     };
     ($($stmt:expr),+ $(,)?) => {
         {
-            $crate::try_uniform_type!(InsertStatement, $($stmt),+)
-            .or_else(|_| $crate::try_uniform_type!(SelectStatement, $($stmt),+))
-            .or_else(|_| $crate::try_uniform_type!(UpdateStatement, $($stmt),+))
-            .or_else(|_| $crate::try_uniform_type!(DeleteStatement, $($stmt),+))
-            .unwrap_or_else(|_| {
-                let mut temp_vec = Vec::<QueryStatement>::with_capacity($crate::count!($($stmt),+));
-                use $crate::state::database::IntoQueryStatement;
-                $(
-                    temp_vec.push($stmt.into_query_statement());
-                )+
-                temp_vec
-            })
-        }
-    };
-}
-
-/// Helper macro to try creating a homogeneous vector
-#[macro_export]
-macro_rules! try_uniform_type {
-    (@try_same_type $stmt_type:ty, $($stmt:expr),+) => {
-        {
-            // This will compile if all statements are of type $stmt_type
-            let _: &[$stmt_type] = &[$(&$stmt),+];
-            // If we get here, all statements are the same type
-            let mut temp_vec = Vec::<$stmt_type>::with_capacity($crate::count!($($stmt),+));
+            let mut builder = $crate::state::database::QueryBuilder::new();
             $(
-                temp_vec.push($stmt);
+                builder = builder.add($stmt);
             )+
-            temp_vec
+            builder.into()
         }
-        // If the above fails, fall back to mixed types
-        compile_error!("Fallback not implemented in this simplified version")
     };
 }
