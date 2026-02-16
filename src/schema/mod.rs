@@ -1,14 +1,10 @@
 mod afk;
-
 mod guild;
-
 mod shard;
 mod user;
 
 pub use afk::*;
-
 pub use guild::*;
-
 pub use shard::*;
 pub use user::*;
 
