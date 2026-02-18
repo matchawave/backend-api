@@ -65,8 +65,6 @@ impl BotDurable {
 
         match user_agent.split('.').collect::<Vec<&str>>().as_slice() {
             ["DiscordBot"] => {
-                tracing::info!("New bot client connected");
-
                 // initialize the alarms if this is the first connection
                 let timestamp = if self.alarms.borrow().is_empty() {
                     let execute_time = chrono::Utc::now().timestamp_millis() + 60000; // 1 minute from now
@@ -139,7 +137,6 @@ impl BotDurable {
 impl DurableObject for BotDurable {
     fn new(state: State, env: Env) -> Self {
         let name = state.id().to_string();
-        info!("Creating BotDurable object with name: {}", name);
         BotDurable {
             state,
             env,
@@ -150,7 +147,6 @@ impl DurableObject for BotDurable {
     }
 
     async fn fetch(&self, req: Request) -> Result<Response> {
-        debug!("Received request in BotDurable fetch method");
         if let Ok(Some(upgrade)) = req.headers().get("Upgrade") {
             if upgrade.to_lowercase() == "websocket" {
                 let (ws, timestamp) = self.websocket_upgrade(req)?;

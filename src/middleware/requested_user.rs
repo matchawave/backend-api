@@ -7,7 +7,6 @@ pub async fn middleware(headers: HeaderMap, mut req: Request, next: Next) -> Res
     if let Some(client) = get_client(&headers) {
         if let ["DiscordBot", token] = client.split_whitespace().collect::<Vec<&str>>().as_slice() {
             // TODO: Validate the bot token here
-            debug!("Discord Bot token: {}", token);
             let val = Bot::new(token.to_string());
             req.extensions_mut().insert(RequestedUser::Bot(val));
             return next.run(req).await;

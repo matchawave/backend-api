@@ -1,12 +1,17 @@
 use axum::{
+    body::{Body, Bytes},
     extract::{Path, Query},
+    http::Response,
+    response::IntoResponse,
     routing::get,
     Extension, Json, Router,
 };
 use reqwest::StatusCode;
 
+use futures::stream::{self, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{debug, warn};
+use worker::console_log;
 
 use crate::{
     schema::{AfkStatusSchema, UserSchema},
@@ -23,13 +28,13 @@ pub fn router() -> Router {
             "/user/{user_id}",
             get(get_afk).post(set_afk).delete(remove_afk),
         )
-        .route("/", get(get_all_afk))
+        .route("/", get(get_all_afk_streaming))
         .route("/guild/{guild_id}", get(get_guild_afk))
 }
 
 #[derive(Debug, Clone, Deserialize)]
 struct NewAfkBody {
-    guild_id: String,
+    guild_id: Option<String>,
     reason: String,
 }
 
@@ -38,26 +43,20 @@ struct GuildQuery {
     guild_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-struct AfkContext {
-    user_id: String,
-    guild_id: Option<String>,
-    reason: String,
-    current_time: String,
-}
-
 #[axum::debug_handler]
 #[worker::send]
 async fn set_afk(
     Path(user_id): Path<String>,
-    Query(params): Query<GuildQuery>,
     Extension(database): Extension<Database>,
     Extension(requested_user): Extension<RequestedUser>,
     Json(body): Json<NewAfkBody>,
 ) -> Result<Json<AfkStatusSchema>, (StatusCode, String)> {
+    debug!(
+        "Setting AFK status for user_id: {}, guild_id: {:?}, reason: {}",
+        user_id, body.guild_id, body.reason
+    );
     requested_user.bot_protection("Set AFK Status")?;
-    snowflake_protection!(body.guild_id);
-    let guild_id = match params.guild_id {
+    let guild_id = match body.guild_id {
         Some(guild_id) => {
             snowflake_protection!(guild_id);
             Some(guild_id)
@@ -65,7 +64,7 @@ async fn set_afk(
         None => None,
     };
     let current_time = chrono::Utc::now().to_rfc3339();
-    let user_query = UserSchema::insert_if_not_exists(&user_id, &body.guild_id);
+    let user_query = UserSchema::insert_if_not_exists(&user_id);
     let afk_query = AfkStatusSchema::insert(&user_id, &guild_id, &body.reason, &current_time);
 
     database
@@ -142,11 +141,12 @@ async fn remove_afk(
 }
 
 #[worker::send]
-async fn get_all_afk(
+async fn get_all_afk_streaming(
     Extension(database): Extension<Database>,
     Extension(requested_user): Extension<RequestedUser>,
-) -> Result<Json<Vec<AfkStatusSchema>>, (StatusCode, String)> {
+) -> Result<impl IntoResponse, (StatusCode, String)> {
     requested_user.bot_protection("Get All AFK Statuses")?;
+    debug!("Fetching all AFK statuses from the database");
     let afk_query = AfkStatusSchema::all();
     let users: Vec<AfkStatusSchema> = database.execute(afk_query).await.map_err(|e| {
         warn!("Failed to get AFK statuses: {:?}", e);
@@ -156,7 +156,25 @@ async fn get_all_afk(
         )
     })?;
 
-    Ok(Json(users))
+    let stream_output = stream::iter(users).map(|user| {
+        let json = serde_json::to_string(&user).unwrap_or_else(|_| "{}".to_string());
+        console_log!("Streaming AFK status: {}", json);
+        Ok::<_, std::io::Error>(Bytes::from(format!("{}\n", json)))
+    });
+
+    let body = Body::from_stream(stream_output);
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "application/x-ndjson")
+        .body(body)
+        .map_err(|e| {
+            warn!("Failed to build response: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to build response".to_string(),
+            )
+        })
 }
 
 #[worker::send]

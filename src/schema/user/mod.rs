@@ -25,24 +25,18 @@ pub enum User {
     Table,
     #[iden = "id"]
     Id,
-    #[iden = "guild_id"]
-    GuildId,
     #[iden = "created_at"]
     CreatedAt,
 }
 
 impl UserSchema {
-    pub fn insert_if_not_exists(user_id: &String, guild_id: &String) -> sea_query::InsertStatement {
+    pub fn insert_if_not_exists(user_id: &String) -> sea_query::InsertStatement {
         let current_time = chrono::Utc::now().to_rfc3339();
         let on_conflict = sea_query::OnConflict::new().do_nothing().to_owned();
         sea_query::Query::insert()
             .into_table(User::Table)
-            .columns(vec![User::Id, User::GuildId, User::CreatedAt])
-            .values_panic(vec![
-                user_id.clone().into(),
-                guild_id.clone().into(),
-                current_time.into(),
-            ])
+            .columns(vec![User::Id, User::CreatedAt])
+            .values_panic(vec![user_id.clone().into(), current_time.into()])
             .on_conflict(on_conflict)
             .to_owned()
     }

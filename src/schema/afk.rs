@@ -11,7 +11,7 @@ pub struct AfkStatusSchema {
 
 #[derive(Iden)]
 pub enum AfkStatus {
-    #[iden = "afk_status"]
+    #[iden = "afk_statuses"]
     Table,
     #[iden = "user_id"]
     UserId,

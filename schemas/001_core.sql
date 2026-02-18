@@ -6,11 +6,8 @@ CREATE TABLE shards (
 
 DROP TABLE IF EXISTS users;
 CREATE TABLE users (
-    id TEXT NOT NULL, -- User ID
-    guild_id TEXT NOT NULL, -- Guild ID the user is associated with
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    PRIMARY KEY (id, guild_id),
-    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+    id TEXT PRIMARY KEY, -- User ID
+    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')) -- When the user was first seen by the system
 );
 
 DROP TABLE IF EXISTS guilds;
