@@ -72,6 +72,20 @@ impl AfkStatusSchema {
             .to_owned()
     }
 
+    pub fn all_by_batch(batch_size: u64, offset: u64) -> sea_query::SelectStatement {
+        sea_query::Query::select()
+            .from(AfkStatus::Table)
+            .columns(vec![
+                AfkStatus::UserId,
+                AfkStatus::GuildId,
+                AfkStatus::Reason,
+                AfkStatus::CreatedAt,
+            ])
+            .limit(batch_size)
+            .offset(offset)
+            .to_owned()
+    }
+
     pub fn get_guild(guild_id: &str) -> sea_query::SelectStatement {
         sea_query::Query::select()
             .from(AfkStatus::Table)

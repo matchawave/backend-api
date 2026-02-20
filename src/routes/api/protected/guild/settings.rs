@@ -1,19 +1,12 @@
-use std::fmt::Display;
-
-use axum::{
-    extract::{Multipart, Path},
-    response::IntoResponse,
-    routing::get,
-    Extension, Json, Router,
-};
+use axum::{extract::Path, routing::get, Extension, Json, Router};
 use reqwest::StatusCode;
-use sea_query::{Expr, OnConflict, Query, SqliteQueryBuilder};
-use serde::{Deserialize, Serialize};
+
+use serde::Deserialize;
 use tracing::{error, warn};
 use worker::{console_debug, console_log};
 
 use crate::{
-    schema::{GuildSettings, GuildSettingsSchema, SupportedLanguages},
+    schema::{GuildSettingsSchema, SupportedLanguages},
     state::database::{Database, DatabaseExt},
 };
 
@@ -93,13 +86,13 @@ async fn update_setting(
         )
     })?;
 
-    if let Err(e) = database.execute(query).await {
+    let _: Vec<()> = database.execute(query).await.map_err(|e| {
         error!("Failed to update guild settings for ID {}: {}", id, e);
-        return Err((
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Database error: {}", e),
-        ));
-    }
+        )
+    })?;
     Ok(Json(settings))
 }
 
@@ -110,10 +103,9 @@ async fn delete_setting(
 ) -> Result<Json<GuildSettingsSchema>, StatusCode> {
     let query = GuildSettingsSchema::delete(id.clone());
 
-    let deleted_settings: Vec<GuildSettingsSchema> =
-        database.execute(query).await.map_err(|e| {
-            error!("Failed to delete guild settings for ID {}: {}", id, e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let _: Vec<GuildSettingsSchema> = database.execute(query).await.map_err(|e| {
+        error!("Failed to delete guild settings for ID {}: {}", id, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     Ok(Json(GuildSettingsSchema::default(id)))
 }

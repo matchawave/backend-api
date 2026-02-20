@@ -104,6 +104,29 @@ impl DatabaseExt<InsertStatement, ()> for Database {
 }
 
 #[async_trait(?Send)]
+impl<T> DatabaseExt<InsertStatement, Vec<T>> for Database
+where
+    T: DeserializeOwned,
+{
+    async fn execute(&self, input: InsertStatement) -> worker::Result<Vec<T>> {
+        let result = self.execute_run(input).await?;
+        result.results::<T>()
+    }
+
+    async fn batch(&self, inputs: Vec<InsertStatement>) -> worker::Result<Vec<Vec<T>>> {
+        let results = self.batch_run(inputs).await?;
+
+        let mut all_results = Vec::new();
+        for result in results {
+            let rows = result.results::<T>()?;
+            all_results.push(rows);
+        }
+
+        Ok(all_results)
+    }
+}
+
+#[async_trait(?Send)]
 impl<T> DatabaseExt<SelectStatement, Vec<T>> for Database
 where
     T: DeserializeOwned,

@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use crate::{
-    schema::{Guild, GuildSchema},
+    schema::GuildSchema,
     state::{
         database::{Database, DatabaseExt},
         user::RequestedUser,
@@ -9,13 +7,12 @@ use crate::{
 };
 use axum::{
     extract::{Path, Query},
-    http::Response,
     response::IntoResponse,
     routing::get,
     Extension, Json, Router,
 };
 use reqwest::StatusCode;
-use sea_query::{Expr, OnConflict, SqliteQueryBuilder};
+
 use serde::Deserialize;
 use tracing::{error, warn};
 
@@ -75,16 +72,16 @@ async fn create_new_guild(
 
     let shard_id = params.shard_id;
 
-    if let Err(e) = database
+    let _: Vec<()> = (database
         .execute(GuildSchema::insert(guild_id, shard_id))
-        .await
-    {
-        error!("Failed to create guild entry: {:?}", e);
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to create guild entry".to_string(),
-        ));
-    }
+        .await)
+        .map_err(|e| {
+            error!("Failed to create guild entry: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to create guild entry".to_string(),
+            )
+        })?;
     Ok(())
 }
 

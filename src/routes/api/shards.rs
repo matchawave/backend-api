@@ -118,13 +118,13 @@ async fn set_started_shards(
         queries.push(insert_stmt);
     }
 
-    if let Err(e) = database.batch(queries).await {
-        warn!("Failed to insert new shards: {:?}", e);
-        return Err((
+    let _: Vec<()> = database.batch(queries).await.map_err(|e| {
+        error!("Failed to insert new shards: {:?}", e);
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Failed to insert new shards".to_string(),
-        ));
-    }
+        )
+    })?;
     info!("Inserted {} new shards", count);
 
     Ok(())

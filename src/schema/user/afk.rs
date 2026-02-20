@@ -7,7 +7,7 @@ pub struct AfkConfigSchema {
     pub user_id: String,
     #[serde(deserialize_with = "deserialize_bool")]
     pub per_guild: bool,
-    pub message: String,
+    pub default_reason: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -20,8 +20,8 @@ pub enum AfkConfig {
     UserId,
     #[iden = "per_guild"]
     PerGuild,
-    #[iden = "message"]
-    Message,
+    #[iden = "default_reason"]
+    DefaultReason,
     #[iden = "created_at"]
     CreatedAt,
     #[iden = "updated_at"]
@@ -29,45 +29,46 @@ pub enum AfkConfig {
 }
 
 impl AfkConfigSchema {
-    pub fn insert(user_id: String, per_guild: bool, message: String) -> sea_query::InsertStatement {
-        let current_time = chrono::Utc::now().to_rfc3339();
-        let per_guild = if per_guild { 1 } else { 0 };
-        let on_conflict = sea_query::OnConflict::new()
-            .update_columns(vec![
-                AfkConfig::PerGuild,
-                AfkConfig::Message,
-                AfkConfig::UpdatedAt,
-            ])
+    /// Insert with upsert behavior: if the user_id already exists, update the existing record instead of inserting a new one
+    pub fn insert(
+        user_id: &String,
+        per_guild: &Option<bool>,
+        default_reason: &Option<String>,
+        current_time: &str,
+    ) -> sea_query::InsertStatement {
+        let per_guild = per_guild.map(|b| if b { 1 } else { 0 });
+
+        let mut on_conflict = sea_query::OnConflict::new()
+            .update_column(AfkConfig::UpdatedAt)
             .to_owned();
+        if per_guild.is_some() {
+            // This means there is an update to the per_guild setting, so we need to update that column as well
+            on_conflict.update_column(AfkConfig::PerGuild);
+        }
+        if default_reason.is_some() {
+            // This means there is an update to the default_reason setting, so we need to update that column as well
+            on_conflict.update_column(AfkConfig::DefaultReason);
+        }
+        let columns = vec![
+            AfkConfig::UserId,
+            AfkConfig::PerGuild,
+            AfkConfig::DefaultReason,
+            AfkConfig::CreatedAt,
+            AfkConfig::UpdatedAt,
+        ];
+        let time = Expr::value(current_time.to_string());
         sea_query::Query::insert()
             .into_table(AfkConfig::Table)
-            .columns(vec![
-                AfkConfig::UserId,
-                AfkConfig::PerGuild,
-                AfkConfig::Message,
-                AfkConfig::CreatedAt,
-                AfkConfig::UpdatedAt,
-            ])
-            .on_conflict(on_conflict)
+            .on_conflict(on_conflict.to_owned())
+            .columns(columns)
             .values_panic(vec![
                 user_id.into(),
-                per_guild.into(),
-                message.into(),
-                current_time.clone().into(),
-                current_time.into(),
+                per_guild.unwrap_or(0).into(),
+                Expr::value(default_reason.clone()),
+                time.clone(),
+                time,
             ])
-            .to_owned()
-    }
-
-    pub fn update(user_id: String, per_guild: bool, message: String) -> sea_query::UpdateStatement {
-        let current_time = chrono::Utc::now().to_rfc3339();
-        let per_guild = if per_guild { 1 } else { 0 };
-        sea_query::Query::update()
-            .table(AfkConfig::Table)
-            .value(AfkConfig::PerGuild, Expr::value(per_guild))
-            .value(AfkConfig::Message, Expr::value(message))
-            .value(AfkConfig::UpdatedAt, Expr::value(current_time))
-            .and_where(Expr::col(AfkConfig::UserId).eq(user_id))
+            .returning_all()
             .to_owned()
     }
 
@@ -75,6 +76,20 @@ impl AfkConfigSchema {
         sea_query::Query::delete()
             .from_table(AfkConfig::Table)
             .and_where(Expr::col(AfkConfig::UserId).eq(user_id))
+            .to_owned()
+    }
+
+    pub fn get(user_id: &str) -> sea_query::SelectStatement {
+        sea_query::Query::select()
+            .columns(vec![
+                AfkConfig::UserId,
+                AfkConfig::PerGuild,
+                AfkConfig::DefaultReason,
+                AfkConfig::CreatedAt,
+                AfkConfig::UpdatedAt,
+            ])
+            .from(AfkConfig::Table)
+            .and_where(Expr::col(AfkConfig::UserId).eq(user_id.to_string()))
             .to_owned()
     }
 }

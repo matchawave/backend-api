@@ -12,8 +12,8 @@ CREATE TABLE afk_statuses(
 DROP TABLE IF EXISTS afk_configs;
 CREATE TABLE afk_configs(
     user_id TEXT PRIMARY KEY, -- User ID
-    per_guild BOOLEAN DEFAULT 0, -- Whether AFK statuses will be per guild or global
-    message TEXT NOT NULL DEFAULT 'I am currently AFK: AFK', -- Message to show when user is AFK
+    per_guild BOOLEAN NOT NULL DEFAULT 0, -- Whether AFK statuses will be per guild or global
+    default_reason TEXT DEFAULT null,-- Message to show when user is AFK
     created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

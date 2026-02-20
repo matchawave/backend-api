@@ -1,17 +1,5 @@
-use axum::{
-    body::{Body, Bytes},
-    extract::{Path, Query},
-    http::Response,
-    response::IntoResponse,
-    routing::get,
-    Extension, Json, Router,
-};
-use reqwest::StatusCode;
-
-use futures::stream::{self, Stream, StreamExt};
-use serde::{Deserialize, Serialize};
-use tracing::{debug, warn};
-use worker::console_log;
+mod config;
+mod stream;
 
 use crate::{
     schema::{AfkStatusSchema, UserSchema},
@@ -21,6 +9,14 @@ use crate::{
         user::RequestedUser,
     },
 };
+use axum::{
+    extract::{Path, Query},
+    routing::get,
+    Extension, Json, Router,
+};
+use reqwest::StatusCode;
+use serde::Deserialize;
+use tracing::{debug, warn};
 
 pub fn router() -> Router {
     Router::new()
@@ -28,7 +24,8 @@ pub fn router() -> Router {
             "/user/{user_id}",
             get(get_afk).post(set_afk).delete(remove_afk),
         )
-        .route("/", get(get_all_afk_streaming))
+        .route("/", get(stream::get_all_afk))
+        .route("/user/config/{user_id}", get(config::get).post(config::set))
         .route("/guild/{guild_id}", get(get_guild_afk))
 }
 
@@ -67,7 +64,7 @@ async fn set_afk(
     let user_query = UserSchema::insert_if_not_exists(&user_id);
     let afk_query = AfkStatusSchema::insert(&user_id, &guild_id, &body.reason, &current_time);
 
-    database
+    let _: Vec<()> = database
         .batch(vec![user_query, afk_query])
         .await
         .map_err(|e| {
@@ -138,43 +135,6 @@ async fn remove_afk(
         return Ok(Json(first.clone()));
     }
     Err((StatusCode::NOT_FOUND, "User is not AFK".to_string()))
-}
-
-#[worker::send]
-async fn get_all_afk_streaming(
-    Extension(database): Extension<Database>,
-    Extension(requested_user): Extension<RequestedUser>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    requested_user.bot_protection("Get All AFK Statuses")?;
-    debug!("Fetching all AFK statuses from the database");
-    let afk_query = AfkStatusSchema::all();
-    let users: Vec<AfkStatusSchema> = database.execute(afk_query).await.map_err(|e| {
-        warn!("Failed to get AFK statuses: {:?}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to get AFK statuses".to_string(),
-        )
-    })?;
-
-    let stream_output = stream::iter(users).map(|user| {
-        let json = serde_json::to_string(&user).unwrap_or_else(|_| "{}".to_string());
-        console_log!("Streaming AFK status: {}", json);
-        Ok::<_, std::io::Error>(Bytes::from(format!("{}\n", json)))
-    });
-
-    let body = Body::from_stream(stream_output);
-
-    Response::builder()
-        .status(StatusCode::OK)
-        .header("Content-Type", "application/x-ndjson")
-        .body(body)
-        .map_err(|e| {
-            warn!("Failed to build response: {:?}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to build response".to_string(),
-            )
-        })
 }
 
 #[worker::send]
