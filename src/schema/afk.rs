@@ -1,6 +1,8 @@
 use sea_query::{Expr, Iden};
 use serde::{Deserialize, Serialize};
 
+use crate::services::streaming::StreamableSchema;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AfkStatusSchema {
     pub user_id: String,
@@ -108,5 +110,21 @@ impl AfkStatusSchema {
             query.and_where(Expr::col(AfkStatus::GuildId).eq(guild_id));
         }
         query.returning_all().to_owned()
+    }
+}
+
+impl StreamableSchema for AfkStatusSchema {
+    fn all_by_batch(batch_size: u64, offset: u64) -> sea_query::SelectStatement {
+        sea_query::Query::select()
+            .from(AfkStatus::Table)
+            .columns(vec![
+                AfkStatus::UserId,
+                AfkStatus::GuildId,
+                AfkStatus::Reason,
+                AfkStatus::CreatedAt,
+            ])
+            .limit(batch_size)
+            .offset(offset)
+            .to_owned()
     }
 }

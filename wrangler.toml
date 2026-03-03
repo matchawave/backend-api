@@ -14,8 +14,8 @@ command = "cargo install -q worker-build && worker-build --dev"
 [[d1_databases]]
 binding = "DB"
 database_name = "testing"
-database_id = "64e87d16-8893-4d06-a438-b64c969e61af"
-
+database_id = "4e2b9f85-c9c0-4b31-8887-71eea1ed921a"
+remote = false
 
 # [[kv_namespaces]]
 # binding = "BOT_TOKENS"

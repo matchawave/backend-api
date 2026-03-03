@@ -1,7 +1,9 @@
 DROP TABLE IF EXISTS birthdays;
 CREATE TABLE birthdays (
     user_id TEXT PRIMARY KEY, -- User ID
-    birthday DATE NOT NULL, -- User's birthday (YYYY-MM-DD)
+    day INTEGER NOT NULL, -- Day of the month (1-31)
+    month INTEGER NOT NULL, -- Month of the year (1-12)
+    year INTEGER DEFAULT NULL, -- Year of birth / Can be null if the user doesn't want to share their age
     created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

@@ -4,17 +4,13 @@ use sea_query::{
     SqliteQueryBuilder, UpdateStatement, Value, Values,
 };
 use serde::de::DeserializeOwned;
-use std::sync::Arc;
 use wasm_bindgen::JsValue;
-use worker::{D1Database, D1PreparedStatement, D1Result};
+use worker::{send::SendWrapper, D1Database, D1PreparedStatement, D1Result, Env};
 
 #[derive(Debug, Clone)]
-pub struct Database(Arc<D1Database>);
-
-impl From<D1Database> for Database {
-    fn from(db: D1Database) -> Self {
-        Self(db.into())
-    }
+pub struct Database {
+    env: SendWrapper<Env>,
+    binding: String,
 }
 
 #[async_trait(?Send)]
@@ -24,8 +20,15 @@ pub trait DatabaseExt<T, U> {
 }
 
 impl Database {
-    pub fn new(database: D1Database) -> Self {
-        Database(Arc::new(database))
+    pub fn new<T: Into<String>>(env: &Env, binding: T) -> Self {
+        Self {
+            env: SendWrapper::new(env.clone()),
+            binding: binding.into(),
+        }
+    }
+
+    fn get_db(&self) -> worker::Result<D1Database> {
+        self.env.d1(&self.binding)
     }
 
     fn build_query<Q: QueryStatementWriter>(
@@ -34,7 +37,7 @@ impl Database {
     ) -> worker::Result<D1PreparedStatement> {
         let (query_str, params) = query.build(SqliteQueryBuilder);
         let params = convert_params(params);
-        let instance = self.0.prepare(&query_str);
+        let instance = self.get_db()?.prepare(&query_str);
         instance.bind(&params)
     }
 
@@ -54,7 +57,7 @@ impl Database {
             statements.push(instance);
         }
 
-        self.0.batch(statements).await
+        self.get_db()?.batch(statements).await
     }
 
     pub async fn batch_mixed(
@@ -72,8 +75,7 @@ impl Database {
             };
             statements.push(q);
         }
-
-        let results = self.0.batch(statements).await?;
+        let results = self.get_db()?.batch(statements).await?;
 
         let mut all_results = Vec::new();
         for result in results {

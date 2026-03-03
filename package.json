@@ -1,6 +1,6 @@
 {
   "devDependencies": {
-    "wrangler": "^4.58.0"
+    "wrangler": "^4.67.0"
   },
   "scripts": {
     "dev": "wrangler dev",
@@ -8,6 +8,6 @@
     "deploy": "wrangler deploy -e production",
     "db:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/build-db.ps1",
     "db:linux": "bash ./scripts/build-db.sh",
-    "db:apply": "wrangler d1 execute testing --local --file schemas/schema_combined.sql"
+    "db:apply": "wrangler d1 execute testing --file schemas/schema_combined.sql"
   }
 }

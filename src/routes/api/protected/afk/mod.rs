@@ -40,8 +40,8 @@ struct GuildQuery {
     guild_id: Option<String>,
 }
 
-#[axum::debug_handler]
 #[worker::send]
+#[axum::debug_handler]
 async fn set_afk(
     Path(user_id): Path<String>,
     Extension(database): Extension<Database>,
@@ -64,16 +64,13 @@ async fn set_afk(
     let user_query = UserSchema::insert_if_not_exists(&user_id);
     let afk_query = AfkStatusSchema::insert(&user_id, &guild_id, &body.reason, &current_time);
 
-    let _: Vec<()> = database
-        .batch(vec![user_query, afk_query])
-        .await
-        .map_err(|e| {
-            warn!("Failed to set AFK status: {:?}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to set AFK status".to_string(),
-            )
-        })?;
+    let _: Vec<()> = (database.batch(vec![user_query, afk_query]).await).map_err(|e| {
+        warn!("Failed to set AFK status: {:?}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to set AFK status".to_string(),
+        )
+    })?;
 
     Ok(Json(AfkStatusSchema {
         user_id,
@@ -84,6 +81,7 @@ async fn set_afk(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn get_afk(
     Path(user_id): Path<String>,
     Extension(database): Extension<Database>,
@@ -101,6 +99,7 @@ async fn get_afk(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn remove_afk(
     Path(user_id): Path<String>,
     Query(params): Query<GuildQuery>,
@@ -138,6 +137,7 @@ async fn remove_afk(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn get_guild_afk(
     Path(guild_id): Path<String>,
     Extension(database): Extension<Database>,

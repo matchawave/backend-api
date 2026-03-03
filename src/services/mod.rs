@@ -3,6 +3,7 @@ use worker::{console_error, Env};
 pub mod auth;
 pub mod cookie;
 pub mod guilds;
+pub mod streaming;
 pub mod user;
 pub mod websocket;
 

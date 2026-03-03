@@ -29,8 +29,8 @@ pub fn router() -> Router {
         .nest("/settings", settings::router())
 }
 
-#[axum::debug_handler]
 #[worker::send]
+#[axum::debug_handler]
 async fn get_guild(
     Path(guild_id): Path<String>,
     Extension(database): Extension<Database>,
@@ -62,6 +62,7 @@ struct NewGuildQuery {
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn create_new_guild(
     Path(guild_id): Path<String>,
     Query(params): Query<NewGuildQuery>,
@@ -85,40 +86,39 @@ async fn create_new_guild(
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct GuildQuery {
+    unavailable: Option<bool>,
+}
+
 #[worker::send]
+#[axum::debug_handler]
 async fn disable_guild(
     Path(guild_id): Path<String>,
     Extension(database): Extension<Database>,
     Extension(requested_user): Extension<RequestedUser>,
+    Query(params): Query<GuildQuery>,
 ) -> Result<(), (StatusCode, String)> {
     requested_user.bot_protection("Disable Guild")?;
-
-    if let Err(e) = database.execute(GuildSchema::disable(guild_id)).await {
-        warn!("Failed to disable guild entry: {:?}", e);
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to disable guild entry".to_string(),
-        ));
-    }
-    Ok(())
-}
-
-#[worker::send]
-pub async fn delete_guild(
-    Path(guild_id): Path<String>,
-    Extension(database): Extension<Database>,
-    Extension(requested_user): Extension<RequestedUser>,
-) -> Result<(), (StatusCode, String)> {
-    requested_user.bot_protection("Delete Guild")?;
-    let _guilds: Vec<GuildSchema> = (database
-        .execute(GuildSchema::get_by_id(guild_id.clone()))
-        .await)
-        .map_err(|e| {
+    let unavailable = params.unavailable.unwrap_or(false); // Default to false if not provided, don't want to accidentally delete guilds if the parameter is missing
+    if unavailable {
+        let delete_query = GuildSchema::delete(guild_id.clone());
+        let _guilds: Vec<GuildSchema> = (database.execute(delete_query).await).map_err(|e| {
             warn!("Failed to get guild for deletion: {:?}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to delete guild entry".to_string(),
             )
         })?;
+    } else {
+        let disable_query = GuildSchema::disable(guild_id.clone());
+        if let Err(e) = database.execute(disable_query).await {
+            warn!("Failed to disable guild entry: {:?}", e);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to disable guild entry".to_string(),
+            ));
+        }
+    }
     Ok(())
 }

@@ -1,22 +1,22 @@
 use axum::{
     body::Body,
-    http::{method, HeaderValue, Response},
+    http::{HeaderValue, Response},
     Extension, Router,
 };
 use reqwest::{
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
-    Method, StatusCode,
+    Method,
 };
 use tower_http::cors::{AllowCredentials, CorsLayer};
 use tower_service::Service;
-use tracing::warn;
+
 use tracing_subscriber::{
     fmt::{format::Pretty, time::UtcTime},
     layer::SubscriberExt,
     util::SubscriberInitExt,
 };
 use tracing_web::{performance_layer, MakeConsoleWriter};
-use worker::{event, Context, Env, HttpRequest, Request, Result};
+use worker::{event, Context, Env, HttpRequest, Result};
 
 use crate::state::{database::Database, server_info::ServerInfo};
 pub mod durables;
@@ -55,14 +55,12 @@ fn cors_layer(webpage: &str) -> CorsLayer {
 }
 
 #[event(fetch)]
-async fn fetch(req: HttpRequest, env: Env, ctx: Context) -> Result<Response<Body>> {
+async fn fetch(req: HttpRequest, env: Env, _ctx: Context) -> Result<Response<Body>> {
     console_error_panic_hook::set_once();
-    let database: Database = env.d1("DB")?.into();
     let server_info = ServerInfo::new(&env)?;
 
     let mut app = Router::new()
         .merge(routes::router())
-        .layer(Extension(database))
         .layer(Extension(env))
         .layer(cors_layer(server_info.webpage()))
         .layer(Extension(server_info));

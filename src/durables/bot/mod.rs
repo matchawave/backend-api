@@ -66,14 +66,15 @@ impl BotDurable {
         match user_agent.split('.').collect::<Vec<&str>>().as_slice() {
             ["DiscordBot"] => {
                 // initialize the alarms if this is the first connection
-                let timestamp = if self.alarms.borrow().is_empty() {
-                    let execute_time = chrono::Utc::now().timestamp_millis() + 60000; // 1 minute from now
-                    let initial_alarms = ScheduledAlarm::initial_alarms();
-                    (self.alarms.borrow_mut()).insert(execute_time, initial_alarms);
-                    Some(execute_time)
-                } else {
-                    None
-                };
+                let timestamp = None;
+                // let timestamp = if self.alarms.borrow().is_empty() {
+                //     let execute_time = chrono::Utc::now().timestamp_millis() + 60000; // 1 minute from now
+                //     let initial_alarms = ScheduledAlarm::initial_alarms();
+                //     (self.alarms.borrow_mut()).insert(execute_time, initial_alarms);
+                //     Some(execute_time)
+                // } else {
+                //     None
+                // };
 
                 let ws = WebSocketPair::new()?;
                 let server = ws.server;
@@ -150,12 +151,12 @@ impl DurableObject for BotDurable {
         if let Ok(Some(upgrade)) = req.headers().get("Upgrade") {
             if upgrade.to_lowercase() == "websocket" {
                 let (ws, timestamp) = self.websocket_upgrade(req)?;
-                if let Some(timestamp) = timestamp {
-                    let alarm_options = alarms::default_options();
-                    (self.state.storage())
-                        .set_alarm_with_options(timestamp, alarm_options)
-                        .await?;
-                }
+                // if let Some(timestamp) = timestamp {
+                //     let alarm_options = alarms::default_options();
+                //     (self.state.storage())
+                //         .set_alarm_with_options(timestamp, alarm_options)
+                //         .await?;
+                // }
                 return Response::from_websocket(ws);
             }
         }
@@ -185,9 +186,9 @@ impl DurableObject for BotDurable {
     }
 
     async fn alarm(&self) -> Result<Response> {
-        if let Err(e) = self.handle_system_alarm().await {
-            tracing::error!("Failed to handle system alarm: {}", e);
-        }
+        // if let Err(e) = self.handle_system_alarm().await {
+        //     tracing::error!("Failed to handle system alarm: {}", e);
+        // }
         Response::ok("Alarm handled")
     }
 

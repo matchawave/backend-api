@@ -1,10 +1,14 @@
-use sea_query::{Iden, InsertStatement, OnConflict, Query};
+use sea_query::{Expr, Iden, InsertStatement, OnConflict, Query, SelectStatement};
 use serde::{Deserialize, Serialize};
 
+use crate::services::streaming::StreamableSchema;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BirthdaysSchema {
+pub struct BirthdaySchema {
     pub user_id: String,
-    pub birthday: String, // DATE format YYYY-MM-DD
+    pub day: u8,
+    pub month: u8,
+    pub year: Option<u16>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -15,42 +19,93 @@ pub enum Birthdays {
     Table,
     #[iden = "user_id"]
     UserId,
-    #[iden = "birthday"]
-    Birthday,
+    #[iden = "day"]
+    Day,
+    #[iden = "month"]
+    Month,
+    #[iden = "year"]
+    Year,
     #[iden = "created_at"]
     CreatedAt,
     #[iden = "updated_at"]
     UpdatedAt,
 }
-impl BirthdaysSchema {
-    pub fn insert_or_update(user_id: &String, birthday: &String) -> InsertStatement {
-        let current_time = chrono::Utc::now().to_rfc3339();
+impl BirthdaySchema {
+    pub fn insert_or_update(
+        user_id: &str,
+        day: u8,
+        month: u8,
+        year: Option<u16>,
+        current_time: &str,
+    ) -> InsertStatement {
         let on_conflict = OnConflict::new()
-            .update_columns(vec![Birthdays::Birthday, Birthdays::UpdatedAt])
+            .update_columns(vec![
+                Birthdays::Day,
+                Birthdays::Month,
+                Birthdays::Year,
+                Birthdays::UpdatedAt,
+            ])
             .to_owned();
 
         Query::insert()
             .into_table(Birthdays::Table)
             .columns(vec![
                 Birthdays::UserId,
-                Birthdays::Birthday,
+                Birthdays::Day,
+                Birthdays::Month,
+                Birthdays::Year,
                 Birthdays::CreatedAt,
                 Birthdays::UpdatedAt,
             ])
             .values_panic(vec![
-                user_id.clone().into(),
-                birthday.clone().into(),
-                current_time.clone().into(),
+                user_id.into(),
+                day.into(),
+                month.into(),
+                Expr::value(year),
+                current_time.into(),
                 current_time.into(),
             ])
             .on_conflict(on_conflict)
             .to_owned()
     }
 
-    pub fn delete_birthday(user_id: &String) -> sea_query::DeleteStatement {
+    pub fn get_birthday(user_id: &str) -> SelectStatement {
+        Query::select()
+            .columns(vec![
+                Birthdays::UserId,
+                Birthdays::Day,
+                Birthdays::Month,
+                Birthdays::Year,
+                Birthdays::CreatedAt,
+                Birthdays::UpdatedAt,
+            ])
+            .from(Birthdays::Table)
+            .and_where(sea_query::Expr::col(Birthdays::UserId).eq(user_id.clone()))
+            .to_owned()
+    }
+
+    pub fn delete_birthday(user_id: &str) -> sea_query::DeleteStatement {
         Query::delete()
             .from_table(Birthdays::Table)
             .and_where(sea_query::Expr::col(Birthdays::UserId).eq(user_id.clone()))
+            .to_owned()
+    }
+}
+
+impl StreamableSchema for BirthdaySchema {
+    fn all_by_batch(batch_size: u64, offset: u64) -> sea_query::SelectStatement {
+        Query::select()
+            .columns(vec![
+                Birthdays::UserId,
+                Birthdays::Day,
+                Birthdays::Month,
+                Birthdays::Year,
+                Birthdays::CreatedAt,
+                Birthdays::UpdatedAt,
+            ])
+            .from(Birthdays::Table)
+            .limit(batch_size)
+            .offset(offset)
             .to_owned()
     }
 }

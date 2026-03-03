@@ -54,7 +54,7 @@ pub async fn set(
         error!("Failed to set AFK config for user_id: {}\n{:?}", user_id, e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to set AFK config"),
+            "Failed to set AFK config".into(),
         )
     })?;
 
@@ -100,10 +100,11 @@ pub async fn set(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 pub async fn get(
     Path(user_id): Path<String>,
     Extension(database): Extension<Database>,
-) -> Result<Json<AfkConfigSchema>, (StatusCode, String)> {
+) -> Result<Json<Option<AfkConfigSchema>>, (StatusCode, String)> {
     let config_query = AfkConfigSchema::get(&user_id);
     let results: Vec<AfkConfigSchema> = database.execute(config_query).await.map_err(|e| {
         (
@@ -112,11 +113,5 @@ pub async fn get(
         )
     })?;
 
-    if let Some(config) = results.first() {
-        return Ok(Json(config.clone()));
-    }
-    Err((
-        StatusCode::NOT_FOUND,
-        "AFK config not found for user".to_string(),
-    ))
+    Ok(Json(results.first().cloned()))
 }

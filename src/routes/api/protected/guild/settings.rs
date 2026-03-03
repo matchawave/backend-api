@@ -25,6 +25,7 @@ struct ConfigBody {
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn get_setting(
     Path(id): Path<String>,
     Extension(database): Extension<Database>,
@@ -48,6 +49,7 @@ async fn get_setting(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn update_setting(
     // Update guild settings, if the guild does not exist, it will be created
     Path(id): Path<String>,
@@ -97,6 +99,7 @@ async fn update_setting(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn delete_setting(
     Path(id): Path<String>,
     Extension(database): Extension<Database>,

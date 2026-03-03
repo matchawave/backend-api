@@ -69,6 +69,7 @@ async fn login(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn redirect(
     Extension(env): Extension<Env>,
     Extension(server_info): Extension<ServerInfoArc>,
@@ -115,6 +116,7 @@ async fn redirect(
 }
 
 #[worker::send]
+#[axum::debug_handler]
 async fn status(
     Extension(requested_user): Extension<RequestedUser>,
     jar: CookieJar,

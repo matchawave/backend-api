@@ -45,6 +45,7 @@ axum = { version = "0.8", default-features = false, features = [
 tower-http = { version = "0.6", features = ["trace", "cors"] }
 tower = { version = "0.5" }
 
+
 wasm-bindgen = { version = "0.2.106", features = ["serde"] }
 wasm-bindgen-futures = { version = "0.4.56" }
 rayon-wasm = "1.6.2"

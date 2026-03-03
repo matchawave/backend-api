@@ -27,8 +27,8 @@ async fn get_guilds() -> &'static str {
     "List of guilds"
 }
 
-#[debug_handler]
 #[worker::send]
+#[axum::debug_handler]
 async fn get_mutual_guilds(
     Extension(env): Extension<Env>,
     Extension(requested_user): Extension<RequestedUser>,

@@ -32,7 +32,7 @@ pub fn router() -> Router {
 
 /// Get all stored shard information
 #[worker::send]
-// #[axum::debug_handler]
+#[axum::debug_handler]
 async fn get_all_shards(
     Extension(database): Extension<Database>,
     Extension(env): Extension<Env>,
@@ -102,6 +102,7 @@ async fn get_shards(req: &Request, bot_durable: Stub) -> Result<Vec<ShardUpdateP
 /// Reset's the database's count of shards
 /// with this, the api server knows how many shards the bot is running
 #[worker::send]
+#[axum::debug_handler]
 async fn set_started_shards(
     Extension(database): Extension<Database>,
     Path(count): Path<u32>,

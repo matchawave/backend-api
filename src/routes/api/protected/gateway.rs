@@ -5,7 +5,7 @@ use axum::{
     Extension,
 };
 use reqwest::{header::USER_AGENT, StatusCode};
-use tracing::{debug, error, info};
+use tracing::error;
 use worker::Env;
 
 use crate::{
@@ -14,6 +14,7 @@ use crate::{
 };
 
 #[worker::send]
+#[axum::debug_handler]
 pub async fn handle_websocket(
     Path(id): Path<String>,
     Extension(env): Extension<Env>,
