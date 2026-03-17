@@ -9,8 +9,8 @@ CREATE TABLE giveaways(
     winners_count INTEGER NOT NULL, -- Number of winners to select
     host_id TEXT NOT NULL, -- User ID of the giveaway host
     ended BOOLEAN DEFAULT 0, -- Whether the giveaway has ended
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     FOREIGN KEY (host_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -19,7 +19,7 @@ DROP TABLE IF EXISTS giveaway_entries;
 CREATE TABLE giveaway_entries(
     giveaway_id TEXT NOT NULL, -- Giveaway ID (foreign key to giveaways table)
     user_id TEXT NOT NULL, -- User ID of the participant
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (giveaway_id) REFERENCES giveaways(giveaway_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (giveaway_id, user_id)

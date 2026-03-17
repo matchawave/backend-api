@@ -4,8 +4,8 @@ CREATE TABLE voice_masters(
     master_id TEXT NOT NULL, -- Create channel
     category_id TEXT NOT NULL, -- Category for created channels
 
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, master_id)
 );
@@ -20,8 +20,8 @@ CREATE TABLE voice_configs(
     user_limit INTEGER DEFAULT NULL,
     locked TEXT DEFAULT NULL,
 
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

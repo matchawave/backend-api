@@ -13,8 +13,8 @@ CREATE TABLE command_aliases(
     command TEXT NOT NULL,
     alias TEXT NOT NULL,
     args TEXT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, command, alias)
 );

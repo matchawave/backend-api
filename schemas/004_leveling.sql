@@ -4,7 +4,7 @@ CREATE TABLE user_levels(
     guild_id TEXT NOT NULL, -- Guild ID
     level INTEGER NOT NULL DEFAULT 0, -- User's current level
     xp INTEGER NOT NULL DEFAULT 0, -- User's current XP
-    last_message_at TIMESTAMP DEFAULT (datetime('now', 'utc')), -- When the user last sent a message (for cooldown)
+    last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- When the user last sent a message (for cooldown)
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, guild_id)
@@ -15,8 +15,8 @@ CREATE TABLE user_level_profiles(
     user_id TEXT PRIMARY KEY, -- User ID
     avatar_url TEXT DEFAULT NULL, -- Custom avatar URL for level card
     background_url TEXT DEFAULT NULL, -- Custom background URL for level card
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -27,8 +27,8 @@ CREATE TABLE level_configs(
     maximum_xp_gain INTEGER NOT NULL DEFAULT 25, -- Maximum XP gain per message
     level_up_message TEXT NOT NULL DEFAULT 'GGs {user}, you have reached level {level.rank}!', -- Message to show when user levels up
     channel_id TEXT DEFAULT NULL, -- Channel ID to send level up messages in, NULL for current channel
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
@@ -38,8 +38,8 @@ CREATE TABLE level_roles(
     role_id TEXT NOT NULL, -- Role ID to assign
     level INTEGER NOT NULL, -- Level required for the role
     stackable BOOLEAN NOT NULL DEFAULT 1, -- Whether the role is stackable with other level roles
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, role_id)
 );
@@ -49,8 +49,8 @@ CREATE TABLE level_xp_multipliers(
     guild_id TEXT NOT NULL, -- Guild ID
     multiplier REAL NOT NULL DEFAULT 1.0, -- XP multiplier for the guild
     role_id TEXT DEFAULT NULL, -- Role ID for role-specific multiplier, NULL for guild-wide multiplier
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
-    updated_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, role_id)
 );

@@ -6,7 +6,7 @@ CREATE TABLE reminders(
     channel_id TEXT DEFAULT NULL, -- Channel ID to send the reminder in, NULL for DM
     message TEXT NOT NULL, -- Reminder message
     remind_at TIMESTAMP NOT NULL, -- When to send the reminder
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -19,6 +19,6 @@ CREATE TABLE timed_messages(
     message TEXT NOT NULL, -- Message to send
     interval TEXT NOT NULL, -- Interval for sending the message (e.g., 'daily', 'weekly', 'monthly')
     send_at TIMESTAMP NOT NULL, -- When to send the message
-    created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );

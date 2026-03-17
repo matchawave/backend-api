@@ -11,7 +11,8 @@ DROP TABLE IF EXISTS permission_users;
 CREATE TABLE permission_users (
     guild_id TEXT NOT NULL, -- Guild ID
     permission TEXT NOT NULL, -- Key for the permission
-    user_id TEXT DEFAULT NULL, -- User ID to assign 
+    user_id TEXT NOT NULL, -- User ID to assign
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
-    PRIMARY KEY (guild_id, permission)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (guild_id, permission, user_id)
 );
