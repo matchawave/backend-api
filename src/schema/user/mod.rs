@@ -29,15 +29,4 @@ pub enum User {
     CreatedAt,
 }
 
-impl UserSchema {
-    pub fn insert_if_not_exists(user_id: &String) -> sea_query::InsertStatement {
-        let current_time = chrono::Utc::now().to_rfc3339();
-        let on_conflict = sea_query::OnConflict::new().do_nothing().to_owned();
-        sea_query::Query::insert()
-            .into_table(User::Table)
-            .columns(vec![User::Id, User::CreatedAt])
-            .values_panic(vec![user_id.clone().into(), current_time.into()])
-            .on_conflict(on_conflict)
-            .to_owned()
-    }
-}
+impl UserSchema {}

@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS voice_masters;
 CREATE TABLE voice_masters(
     guild_id TEXT KEY, -- Server ID
     master_id TEXT NOT NULL, -- Create channel
-    category_id TEXT NOT NULL, -- Category for created channels
+    category_id TEXT DEFAULT NULL, -- Category for created channels
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -18,7 +18,7 @@ CREATE TABLE voice_configs(
     name TEXT DEFAULT NULL,
     bitrate INTEGER DEFAULT NULL,
     user_limit INTEGER DEFAULT NULL,
-    locked TEXT DEFAULT NULL,
+    locked INTEGER DEFAULT 0 CHECK(locked IN (0, 1)),
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

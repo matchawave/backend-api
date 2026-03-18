@@ -36,7 +36,6 @@ impl BirthdaySchema {
         day: u8,
         month: u8,
         year: Option<u16>,
-        current_time: &str,
     ) -> InsertStatement {
         let on_conflict = OnConflict::new()
             .update_columns(vec![
@@ -62,8 +61,6 @@ impl BirthdaySchema {
                 day.into(),
                 month.into(),
                 Expr::value(year),
-                current_time.into(),
-                current_time.into(),
             ])
             .on_conflict(on_conflict)
             .to_owned()

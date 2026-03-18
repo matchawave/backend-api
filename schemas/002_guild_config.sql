@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS guild_settings;
 CREATE TABLE guild_settings (
-    guild_id TEXT PRIMARY KEY,
+    guild_id TEXT PRIMARY KEY NOT NULL,
     prefix TEXT DEFAULT '!' NOT NULL,
     language TEXT DEFAULT 'en' NOT NULL,
     colour TEXT DEFAULT NULL,
@@ -13,9 +13,11 @@ CREATE TABLE command_aliases(
     command TEXT NOT NULL,
     alias TEXT NOT NULL,
     args TEXT DEFAULT NULL,
+    author_id TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, command, alias)
 );
 

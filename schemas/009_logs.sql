@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS guild_log_configs;
 CREATE TABLE guild_log_configs (
     guild_id TEXT NOT NULL,
-    log_type TEXT NOT NULL, -- Type of log (e.g., message, voice, moderation)
+    log_type TEXT NOT NULL CHECK(log_type IN ('message', 'voice', 'moderation', 'member', 'channel', 'role', 'emoji', 'guild')), -- Type of log (e.g., message, voice, moderation)
     data TEXT NOT NULL, -- JSON data as string
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

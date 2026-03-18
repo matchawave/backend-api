@@ -44,7 +44,7 @@ pub enum Guild {
 }
 
 impl GuildSchema {
-    pub fn insert<T: Into<String>>(guild_id: T, shard_id: u32) -> InsertStatement {
+    pub fn insert(guild_id: impl Into<String>, shard_id: u32) -> InsertStatement {
         let on_conflict = sea_query::OnConflict::new()
             .update_columns(vec![Guild::Enabled, Guild::ShardId, Guild::LastUpdated])
             .to_owned();
@@ -60,7 +60,7 @@ impl GuildSchema {
             .to_owned()
     }
 
-    pub fn toggle<T: Into<String>>(guild_id: T, new_status: bool) -> UpdateStatement {
+    pub fn toggle(guild_id: impl Into<String>, new_status: bool) -> UpdateStatement {
         let value = if new_status { 1 } else { 0 };
         sea_query::Query::update()
             .table(Guild::Table)
@@ -69,7 +69,7 @@ impl GuildSchema {
             .to_owned()
     }
 
-    pub fn set_shard<T: Into<String>>(guild_id: T, shard_id: u32) -> UpdateStatement {
+    pub fn set_shard(guild_id: impl Into<String>, shard_id: u32) -> UpdateStatement {
         sea_query::Query::update()
             .table(Guild::Table)
             .value(Guild::ShardId, shard_id)
@@ -77,7 +77,7 @@ impl GuildSchema {
             .to_owned()
     }
 
-    pub fn update<T: Into<String>>(guild_id: T) -> UpdateStatement {
+    pub fn update(guild_id: impl Into<String>) -> UpdateStatement {
         let new_date = chrono::Utc::now().to_rfc3339();
         sea_query::Query::update()
             .table(Guild::Table)
@@ -86,7 +86,7 @@ impl GuildSchema {
             .to_owned()
     }
 
-    pub fn disable<T: Into<String>>(guild_id: T) -> UpdateStatement {
+    pub fn disable(guild_id: impl Into<String>) -> UpdateStatement {
         sea_query::Query::update()
             .table(Guild::Table)
             .value(Guild::Enabled, 0)
@@ -94,7 +94,7 @@ impl GuildSchema {
             .to_owned()
     }
 
-    pub fn delete<T: Into<String>>(guild_id: T) -> DeleteStatement {
+    pub fn delete(guild_id: impl Into<String>) -> DeleteStatement {
         sea_query::Query::delete()
             .from_table(Guild::Table)
             .and_where(sea_query::Expr::col(Guild::Id).eq(guild_id.into()))
@@ -106,14 +106,14 @@ impl GuildSchema {
         sea_query::Query::select().from(Guild::Table).to_owned()
     }
 
-    pub fn get_by_id<T: Into<String>>(guild_id: T) -> sea_query::SelectStatement {
+    pub fn get_by_id(guild_id: impl Into<String>) -> sea_query::SelectStatement {
         sea_query::Query::select()
             .from(Guild::Table)
             .and_where(sea_query::Expr::col(Guild::Id).eq(guild_id.into()))
             .to_owned()
     }
 
-    pub fn get_by_ids<T: Into<String>>(guilds: Vec<T>) -> sea_query::SelectStatement {
+    pub fn get_by_ids(guilds: Vec<impl Into<String>>) -> sea_query::SelectStatement {
         let guild_ids: Vec<String> = guilds.into_iter().map(|g| g.into()).collect();
         sea_query::Query::select()
             .from(Guild::Table)
@@ -121,7 +121,7 @@ impl GuildSchema {
             .to_owned()
     }
 
-    pub fn get_shard<T: Into<String>>(guild_id: T) -> sea_query::SelectStatement {
+    pub fn get_shard(guild_id: impl Into<String>) -> sea_query::SelectStatement {
         sea_query::Query::select()
             .from(Guild::Table)
             .and_where(sea_query::Expr::col(Guild::Id).eq(guild_id.into()))

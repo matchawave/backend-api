@@ -60,11 +60,9 @@ async fn set_afk(
         }
         None => None,
     };
-    let current_time = chrono::Utc::now().to_rfc3339();
-    let user_query = UserSchema::insert_if_not_exists(&user_id);
-    let afk_query = AfkStatusSchema::insert(&user_id, &guild_id, &body.reason, &current_time);
+    let afk_query = AfkStatusSchema::insert(&user_id, &guild_id, &body.reason);
 
-    let _: Vec<()> = (database.batch(vec![user_query, afk_query]).await).map_err(|e| {
+    let result: Vec<AfkStatusSchema> = (database.execute(afk_query).await).map_err(|e| {
         warn!("Failed to set AFK status: {:?}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -72,12 +70,9 @@ async fn set_afk(
         )
     })?;
 
-    Ok(Json(AfkStatusSchema {
-        user_id,
-        guild_id,
-        reason: body.reason,
-        created_at: current_time,
-    }))
+    let status = result.first().unwrap();
+
+    Ok(Json(status.clone()))
 }
 
 #[worker::send]

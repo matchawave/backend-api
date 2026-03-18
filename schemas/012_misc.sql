@@ -17,8 +17,7 @@ CREATE TABLE timed_messages(
     guild_id TEXT NOT NULL, -- Guild ID to send the message in
     channel_id TEXT NOT NULL, -- Channel ID to send the message in
     message TEXT NOT NULL, -- Message to send
-    interval TEXT NOT NULL, -- Interval for sending the message (e.g., 'daily', 'weekly', 'monthly')
-    send_at TIMESTAMP NOT NULL, -- When to send the message
+    interval INTEGER NOT NULL, -- Interval for sending the message, stored in seconds
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );

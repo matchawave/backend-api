@@ -13,7 +13,7 @@ CREATE TABLE users (
 DROP TABLE IF EXISTS guilds;
 CREATE TABLE guilds (
     id TEXT PRIMARY KEY, -- Guild ID
-    enabled BOOLEAN NOT NULL DEFAULT 1, -- Whether the bot is active in this guild
+    enabled BOOLEAN NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)), -- Whether the bot is active in this guild
     shard_id INTEGER NOT NULL,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- When the bot was added to the guild
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- When the guild activity was last recorded

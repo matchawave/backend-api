@@ -37,7 +37,7 @@ CREATE TABLE level_roles(
     guild_id TEXT NOT NULL, -- Guild ID
     role_id TEXT NOT NULL, -- Role ID to assign
     level INTEGER NOT NULL, -- Level required for the role
-    stackable BOOLEAN NOT NULL DEFAULT 1, -- Whether the role is stackable with other level roles
+    stackable BOOLEAN NOT NULL DEFAULT 0 CHECK(stackable IN (0, 1)), -- Whether the role is stackable with other level roles
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
@@ -47,8 +47,8 @@ CREATE TABLE level_roles(
 DROP TABLE IF EXISTS level_xp_multipliers;
 CREATE TABLE level_xp_multipliers(
     guild_id TEXT NOT NULL, -- Guild ID
-    multiplier REAL NOT NULL DEFAULT 1.0, -- XP multiplier for the guild
     role_id TEXT DEFAULT NULL, -- Role ID for role-specific multiplier, NULL for guild-wide multiplier
+    multiplier REAL NOT NULL DEFAULT 1.0 CHECK(multiplier > 0 AND multiplier < 10), -- XP multiplier for the guild
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,

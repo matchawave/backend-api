@@ -36,26 +36,18 @@ async fn set_birthday(
 ) -> Result<Json<BirthdaySchema>, (StatusCode, String)> {
     requested_user.bot_protection("Set Birthday")?;
     let time = chrono::Utc::now().to_rfc3339();
-    let user_query = UserSchema::insert_if_not_exists(&user_id);
     let insert_statement =
-        BirthdaySchema::insert_or_update(&user_id, body.day, body.month, body.year, &time);
+        BirthdaySchema::insert_or_update(&user_id, body.day, body.month, body.year);
 
-    let _: Vec<()> = (database.batch(vec![user_query, insert_statement]).await).map_err(|e| {
+    let result: Vec<BirthdaySchema> = (database.execute(insert_statement).await).map_err(|e| {
         warn!("Failed to set birthday: {:?}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             "Failed to set birthday".to_string(),
         )
     })?;
-
-    Ok(Json(BirthdaySchema {
-        user_id,
-        day: body.day,
-        month: body.month,
-        year: body.year,
-        created_at: time.clone(),
-        updated_at: time,
-    }))
+    let birthday = result.first().unwrap();
+    Ok(Json(birthday.clone()))
 }
 
 #[worker::send]

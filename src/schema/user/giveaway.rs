@@ -23,8 +23,6 @@ pub enum GiveawayEntries {
 
 impl GiveawayEntriesSchema {
     pub fn insert(giveaway_id: &String, user_id: &String) -> InsertStatement {
-        let current_time = chrono::Utc::now().to_rfc3339();
-
         Query::insert()
             .into_table(GiveawayEntries::Table)
             .columns(vec![
@@ -32,11 +30,7 @@ impl GiveawayEntriesSchema {
                 GiveawayEntries::UserId,
                 GiveawayEntries::CreatedAt,
             ])
-            .values_panic(vec![
-                giveaway_id.clone().into(),
-                user_id.clone().into(),
-                current_time.into(),
-            ])
+            .values_panic(vec![giveaway_id.clone().into(), user_id.clone().into()])
             .to_owned()
     }
 

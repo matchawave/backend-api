@@ -12,6 +12,8 @@ pub enum CommandAliases {
     Alias,
     #[iden = "args"]
     Arguments,
+    #[iden = "author_id"]
+    AuthorId,
     #[iden = "created_at"]
     CreatedAt,
     #[iden = "updated_at"]

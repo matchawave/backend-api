@@ -1,4 +1,4 @@
-use sea_query::{Expr, Iden};
+use sea_query::{Expr, Iden, SimpleExpr};
 use serde::{Deserialize, Serialize};
 
 use crate::services::streaming::StreamableSchema;
@@ -26,12 +26,12 @@ pub enum AfkStatus {
 }
 
 impl AfkStatusSchema {
-    pub fn insert<'a>(
-        user_id: &'a str,
-        guild_id: &'a Option<String>,
-        reason: &'a str,
-        current_time: &'a str,
+    pub fn insert(
+        user_id: impl Into<String>,
+        guild_id: &Option<String>,
+        reason: impl Into<String>,
     ) -> sea_query::InsertStatement {
+        // let guild_id = guild_id.map(|g| SimpleExpr::);
         sea_query::Query::insert()
             .into_table(AfkStatus::Table)
             .columns(vec![
@@ -41,15 +41,14 @@ impl AfkStatusSchema {
                 AfkStatus::CreatedAt,
             ])
             .values_panic(vec![
-                user_id.into(),
-                guild_id.clone().into(),
-                reason.into(),
-                current_time.into(),
+                user_id.into().into(),
+                Expr::value(guild_id.clone()),
+                reason.into().into(),
             ])
             .to_owned()
     }
 
-    pub fn get(user_id: &str) -> sea_query::SelectStatement {
+    pub fn get(user_id: impl Into<String>) -> sea_query::SelectStatement {
         sea_query::Query::select()
             .from(AfkStatus::Table)
             .columns(vec![

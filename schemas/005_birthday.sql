@@ -1,8 +1,8 @@
 DROP TABLE IF EXISTS birthdays;
 CREATE TABLE birthdays (
     user_id TEXT PRIMARY KEY, -- User ID
-    day INTEGER NOT NULL, -- Day of the month (1-31)
-    month INTEGER NOT NULL, -- Month of the year (1-12)
+    day INTEGER NOT NULL CHECK(day BETWEEN 1 AND 31), -- Day of the month (1-31)
+    month INTEGER NOT NULL CHECK(month BETWEEN 1 AND 12), -- Month of the year (1-12)
     year INTEGER DEFAULT NULL, -- Year of birth / Can be null if the user doesn't want to share their age
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

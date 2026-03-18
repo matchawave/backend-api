@@ -34,7 +34,6 @@ impl AfkConfigSchema {
         user_id: &String,
         per_guild: &Option<bool>,
         default_reason: &Option<String>,
-        current_time: &str,
     ) -> sea_query::InsertStatement {
         let per_guild = per_guild.map(|b| if b { 1 } else { 0 });
 
@@ -56,7 +55,6 @@ impl AfkConfigSchema {
             AfkConfig::CreatedAt,
             AfkConfig::UpdatedAt,
         ];
-        let time = Expr::value(current_time.to_string());
         sea_query::Query::insert()
             .into_table(AfkConfig::Table)
             .on_conflict(on_conflict.to_owned())
@@ -65,8 +63,6 @@ impl AfkConfigSchema {
                 user_id.into(),
                 per_guild.unwrap_or(0).into(),
                 Expr::value(default_reason.clone()),
-                time.clone(),
-                time,
             ])
             .returning_all()
             .to_owned()
