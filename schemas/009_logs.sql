@@ -29,3 +29,83 @@ CREATE TABLE guild_ignore_users (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, user_id)
 );
+
+DROP TRIGGER IF EXISTS guild_inserted_guild_log_configs;
+CREATE TRIGGER guild_inserted_guild_log_configs
+AFTER INSERT ON guild_log_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_guild_log_configs;
+CREATE TRIGGER guild_updated_guild_log_configs
+AFTER UPDATE ON guild_log_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_guild_log_configs;
+CREATE TRIGGER guild_deleted_guild_log_configs
+AFTER DELETE ON guild_log_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_guild_ignore_channels;
+CREATE TRIGGER guild_inserted_guild_ignore_channels
+AFTER INSERT ON guild_ignore_channels
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_guild_ignore_channels;
+CREATE TRIGGER guild_updated_guild_ignore_channels
+AFTER UPDATE ON guild_ignore_channels
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_guild_ignore_channels;
+CREATE TRIGGER guild_deleted_guild_ignore_channels
+AFTER DELETE ON guild_ignore_channels
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_guild_ignore_users;
+CREATE TRIGGER guild_inserted_guild_ignore_users
+AFTER INSERT ON guild_ignore_users
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_guild_ignore_users;
+CREATE TRIGGER guild_updated_guild_ignore_users
+AFTER UPDATE ON guild_ignore_users
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_guild_ignore_users;
+CREATE TRIGGER guild_deleted_guild_ignore_users
+AFTER DELETE ON guild_ignore_users
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS user_not_exists_guild_ignore_users;
+CREATE TRIGGER user_not_exists_guild_ignore_users
+BEFORE INSERT ON guild_ignore_users
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.user_id);
+END;

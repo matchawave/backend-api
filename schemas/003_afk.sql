@@ -18,3 +18,43 @@ CREATE TABLE afk_configs(
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+DROP TRIGGER IF EXISTS user_not_exists_afk_statuses;
+CREATE TRIGGER user_not_exists_afk_statuses
+BEFORE INSERT ON afk_statuses
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.user_id);
+END;
+
+DROP TRIGGER IF EXISTS user_not_exists_afk_configs;
+CREATE TRIGGER user_not_exists_afk_configs
+BEFORE INSERT ON afk_configs
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.user_id);
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_afk_statuses;
+CREATE TRIGGER guild_inserted_afk_statuses
+AFTER INSERT ON afk_statuses
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_afk_statuses;
+CREATE TRIGGER guild_updated_afk_statuses
+AFTER UPDATE ON afk_statuses
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_afk_statuses;
+CREATE TRIGGER guild_deleted_afk_statuses
+AFTER DELETE ON afk_statuses
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;

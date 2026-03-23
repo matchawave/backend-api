@@ -21,3 +21,59 @@ CREATE TABLE command_aliases(
     PRIMARY KEY (guild_id, command, alias)
 );
 
+
+DROP TRIGGER IF EXISTS guild_inserted_guild_settings;
+CREATE TRIGGER guild_inserted_guild_settings
+AFTER INSERT ON guild_settings
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_guild_settings;
+CREATE TRIGGER guild_updated_guild_settings
+AFTER UPDATE ON guild_settings
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_guild_settings;
+CREATE TRIGGER guild_deleted_guild_settings
+AFTER DELETE ON guild_settings
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_command_aliases;
+CREATE TRIGGER guild_inserted_command_aliases
+AFTER INSERT ON command_aliases
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_command_aliases;
+CREATE TRIGGER guild_updated_command_aliases
+AFTER UPDATE ON command_aliases
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_command_aliases;
+CREATE TRIGGER guild_deleted_command_aliases
+AFTER DELETE ON command_aliases
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS user_not_exists_command_aliases;
+CREATE TRIGGER user_not_exists_command_aliases
+BEFORE INSERT ON command_aliases
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.author_id);
+END;

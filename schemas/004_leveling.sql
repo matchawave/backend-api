@@ -10,8 +10,8 @@ CREATE TABLE user_levels(
     PRIMARY KEY (user_id, guild_id)
 );
 
-DROP TABLE IF EXISTS user_level_profiles;
-CREATE TABLE user_level_profiles(
+DROP TABLE IF EXISTS user_profiles;
+CREATE TABLE user_profiles(
     user_id TEXT PRIMARY KEY, -- User ID
     avatar_url TEXT DEFAULT NULL, -- Custom avatar URL for level card
     background_url TEXT DEFAULT NULL, -- Custom background URL for level card
@@ -54,3 +54,116 @@ CREATE TABLE level_xp_multipliers(
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
     PRIMARY KEY (guild_id, role_id)
 );
+
+DROP TRIGGER IF EXISTS user_not_exists_user_levels;
+CREATE TRIGGER user_not_exists_user_levels
+BEFORE INSERT ON user_levels
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.user_id);
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_user_levels;
+CREATE TRIGGER guild_inserted_user_levels
+AFTER INSERT ON user_levels
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_user_levels;
+CREATE TRIGGER guild_updated_user_levels
+AFTER UPDATE ON user_levels
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_user_levels;
+CREATE TRIGGER guild_deleted_user_levels
+AFTER DELETE ON user_levels
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS user_not_exists_user_profiles;
+CREATE TRIGGER user_not_exists_user_profiles
+BEFORE INSERT ON user_profiles
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.user_id);
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_level_configs;
+CREATE TRIGGER guild_inserted_level_configs
+AFTER INSERT ON level_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_level_configs;
+CREATE TRIGGER guild_updated_level_configs
+AFTER UPDATE ON level_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_level_configs;
+CREATE TRIGGER guild_deleted_level_configs
+AFTER DELETE ON level_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_level_roles;
+CREATE TRIGGER guild_inserted_level_roles
+AFTER INSERT ON level_roles
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_level_roles;
+CREATE TRIGGER guild_updated_level_roles
+AFTER UPDATE ON level_roles
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_level_roles;
+CREATE TRIGGER guild_deleted_level_roles
+AFTER DELETE ON level_roles
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_level_xp_multipliers;
+CREATE TRIGGER guild_inserted_level_xp_multipliers
+AFTER INSERT ON level_xp_multipliers
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_level_xp_multipliers;
+CREATE TRIGGER guild_updated_level_xp_multipliers
+AFTER UPDATE ON level_xp_multipliers
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_level_xp_multipliers;
+CREATE TRIGGER guild_deleted_level_xp_multipliers
+AFTER DELETE ON level_xp_multipliers
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+

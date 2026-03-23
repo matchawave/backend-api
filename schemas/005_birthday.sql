@@ -19,4 +19,34 @@ CREATE TABLE birthday_configs (
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
+DROP TRIGGER IF EXISTS user_not_exists_birthdays;
+CREATE TRIGGER user_not_exists_birthdays
+BEFORE INSERT ON birthdays
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.user_id);
+END;
 
+DROP TRIGGER IF EXISTS guild_inserted_birthday_configs;
+CREATE TRIGGER guild_inserted_birthday_configs
+AFTER INSERT ON birthday_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_birthday_configs;
+CREATE TRIGGER guild_updated_birthday_configs
+AFTER UPDATE ON birthday_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_birthday_configs;
+CREATE TRIGGER guild_deleted_birthday_configs
+AFTER DELETE ON birthday_configs
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;

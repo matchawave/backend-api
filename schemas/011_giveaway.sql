@@ -7,12 +7,12 @@ CREATE TABLE giveaways(
     prize TEXT NOT NULL, -- Prize for the giveaway
     end_time TIMESTAMP NOT NULL, -- When the giveaway ends
     winners_count INTEGER NOT NULL, -- Number of winners to select
-    host_id TEXT NOT NULL, -- User ID of the giveaway host
+    user_id TEXT NOT NULL, -- User ID of the giveaway host
     ended BOOLEAN DEFAULT 0, -- Whether the giveaway has ended
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
-    FOREIGN KEY (host_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 DROP TABLE IF EXISTS giveaway_entries;
@@ -24,3 +24,68 @@ CREATE TABLE giveaway_entries(
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (giveaway_id, user_id)
 );
+
+DROP TRIGGER IF EXISTS user_not_exists_giveaways;
+CREATE TRIGGER user_not_exists_giveaways
+BEFORE INSERT ON giveaways
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.user_id);
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_giveaways;
+CREATE TRIGGER guild_inserted_giveaways
+AFTER INSERT ON giveaways
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_giveaways;
+CREATE TRIGGER guild_updated_giveaways
+AFTER UPDATE ON giveaways
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_giveaways;
+CREATE TRIGGER guild_deleted_giveaways
+AFTER DELETE ON giveaways
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_giveaways;
+CREATE TRIGGER guild_inserted_giveaways
+AFTER INSERT ON giveaways
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_giveaways;
+CREATE TRIGGER guild_updated_giveaways
+AFTER UPDATE ON giveaways
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_giveaways;
+CREATE TRIGGER guild_deleted_giveaways
+AFTER DELETE ON giveaways
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+
+DROP TRIGGER IF EXISTS user_not_exists_giveaway_entries;
+CREATE TRIGGER user_not_exists_giveaway_entries
+BEFORE INSERT ON giveaway_entries
+FOR EACH ROW
+BEGIN
+    INSERT OR IGNORE INTO users(id) VALUES (NEW.user_id);
+END;

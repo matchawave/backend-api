@@ -57,7 +57,7 @@ impl AfkStatusSchema {
                 AfkStatus::Reason,
                 AfkStatus::CreatedAt,
             ])
-            .and_where(Expr::col(AfkStatus::UserId).eq(user_id))
+            .and_where(Expr::col(AfkStatus::UserId).eq(user_id.into()))
             .to_owned()
     }
 
