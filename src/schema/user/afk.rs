@@ -33,7 +33,7 @@ pub enum AfkConfig {
 
 impl AfkConfigSchema {
     /// Insert with upsert behavior: if the user_id already exists, update the existing record instead of inserting a new one
-    pub fn get_and_insert(
+    pub fn insert(
         user_id: &String,
         per_guild: &Option<bool>,
         default_reason: &Option<String>,
@@ -58,59 +58,19 @@ impl AfkConfigSchema {
             AfkConfig::DefaultReason,
         ];
 
-        let config_name = Alias::new("old_cfg");
-
-        // Get the old config for the user
-        let select_query = SelectStatement::new()
-            .columns(columns)
-            .from(AfkConfig::Table)
-            .and_where(Expr::col(AfkConfig::UserId).eq(user_id.to_string()))
-            .to_owned();
-
-        let cte = CommonTableExpression::new()
-            .table_name(config_name.clone())
-            .columns(columns)
-            .query(select_query)
-            .to_owned();
-
-        let mut base_branch = Query::select()
-            .expr(Expr::value(user_id.to_string()))
-            .expr(per_guild.unwrap_or(0))
-            .expr(Expr::value(default_reason.clone()))
-            .to_owned();
-
-        let fallback_branch = base_branch
-            .clone()
-            .cond_where(
-                Cond::all().not().add(Expr::exists(
-                    Query::select()
-                        .expr(Expr::value(1))
-                        .from(config_name.clone())
-                        .to_owned(),
-                )),
-            )
-            .clone();
-
-        let values_select = base_branch
-            .from(config_name.clone())
-            .union(sea_query::UnionType::All, fallback_branch)
-            .to_owned();
-
         // Insert the new config with upsert behavior
-        match InsertStatement::new()
-            .with_cte(cte)
+        InsertStatement::new()
             .into_table(AfkConfig::Table)
             .columns(columns)
-            .select_from(values_select)
-        {
-            Ok(insert) => insert
-                .on_conflict(on_conflict.to_owned())
-                .returning_all()
-                .to_owned(),
-            Err(e) => {
-                panic!("Failed to build insert statement: {e}");
-            }
-        }
+            .on_conflict(on_conflict.to_owned())
+            .returning_all()
+            .values(vec![
+                user_id.to_string().into(),
+                Expr::value(per_guild),
+                Expr::value(default_reason.clone()),
+            ])
+            .unwrap()
+            .to_owned()
     }
 
     pub fn delete(user_id: String) -> sea_query::DeleteStatement {

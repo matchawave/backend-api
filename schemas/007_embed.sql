@@ -13,7 +13,7 @@ CREATE TABLE embeds (
     PRIMARY KEY (guild_id, name)
 );
 
-DROP TRIGGER IF EXISTS embed_updated;
+DROP TRIGGER IF EXISTS user_not_exists_embeds;
 CREATE TRIGGER user_not_exists_embeds
 BEFORE INSERT ON embeds
 FOR EACH ROW

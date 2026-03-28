@@ -1,7 +1,7 @@
 use axum::{
+    Extension, Json, Router,
     extract::{Path, Request},
     routing::{get, post},
-    Extension, Json, Router,
 };
 use reqwest::StatusCode;
 use sea_query::{Expr, Query, SelectStatement};
@@ -9,12 +9,10 @@ use tracing::{error, info, warn};
 use worker::{Env, Stub};
 
 use crate::{
-    check_snowflake,
     durables::{
-        bot::{BotDurable, ShardUpdatePayload},
         DurableFetch,
+        bot::{BotDurable, ShardUpdatePayload},
     },
-    routes::api::shards,
     schema::{Guild, GuildSchema, ShardSchema},
     snowflake_protection,
     state::{
@@ -60,19 +58,17 @@ async fn get_all_shards(
             (StatusCode::INTERNAL_SERVER_ERROR, "".to_string())
         })?;
 
-    let queries = ShardedGuild::fetch(shard_datas.len() as u32);
-
-    let guilds: Vec<Vec<ShardedGuild>> = database.batch(queries).await.map_err(|e| {
+    let guild_counts: Vec<u32> = database.execute(get_guild_counts()).await.map_err(|e| {
         error!("Failed to get guilds for shards: {}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, "".to_string())
     })?;
 
-    let output = (shard_datas.iter().zip(guilds).zip(shard_infos))
-        .map(|((shard, guilds), info)| ShardWithGuildCount {
+    let output = (shard_datas.iter().zip(guild_counts).zip(shard_infos))
+        .map(|((shard, guild_counts), info)| ShardWithGuildCount {
             shard: shard.shard_id,
             status: shard.status.clone(),
             latency: shard.latency_ms,
-            guilds: guilds.len() as u32,
+            guilds: guild_counts,
             users: shard.members,
             started: info.started_at,
         })
@@ -119,7 +115,7 @@ async fn set_started_shards(
         queries.push(insert_stmt);
     }
 
-    let _: Vec<()> = database.batch(queries).await.map_err(|e| {
+    let _: Vec<()> = database.batch(&queries).await.map_err(|e| {
         error!("Failed to insert new shards: {:?}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -167,25 +163,14 @@ async fn get_shard_by_guild(
 struct Shard {
     shard_id: u32,
 }
-#[derive(serde::Deserialize, Debug)]
-struct ShardedGuild {
-    #[serde(rename = "id")]
-    guild_id: String,
-    shard_id: u32,
-}
-
-impl ShardedGuild {
-    pub fn fetch(shard_count: u32) -> Vec<SelectStatement> {
-        (0..shard_count)
-            .map(|shard_id| {
-                Query::select()
-                    .from(Guild::Table)
-                    .and_where(Expr::col(Guild::ShardId).eq(shard_id))
-                    .columns(vec![Guild::Id, Guild::ShardId])
-                    .to_owned()
-            })
-            .collect()
-    }
+/// This is to get the total number of guilds stored in each shard
+fn get_guild_counts() -> SelectStatement {
+    Query::select()
+        .column(Guild::ShardId)
+        .expr(Expr::col(Guild::Id).count())
+        .from(Guild::Table)
+        .group_by_col(Guild::ShardId)
+        .to_owned()
 }
 
 #[derive(serde::Serialize)]

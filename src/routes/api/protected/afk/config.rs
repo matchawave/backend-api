@@ -1,5 +1,6 @@
 use axum::{Extension, Json, extract::Path};
 use reqwest::StatusCode;
+use sea_query::QueryStatement;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use worker::console_debug;
@@ -42,57 +43,43 @@ pub async fn set(
 
     let per_guild = body.per_guild;
     let default_reason = body.default_reason.clone();
-    let config_query = AfkConfigSchema::get_and_insert(&user_id, &per_guild, &default_reason);
+    let get_config = QueryStatement::Select(AfkConfigSchema::get(&user_id));
+    let insert_config = QueryStatement::Insert(AfkConfigSchema::insert(
+        &user_id,
+        &per_guild,
+        &default_reason,
+    ));
 
-    let results: Vec<AfkConfigSchema> = database.execute(config_query).await.map_err(|e| {
-        error!("Failed to set AFK config for user_id: {}\n{:?}", user_id, e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to set AFK config".into(),
-        )
-    })?;
+    let results = database
+        .batch_mixed::<AfkConfigSchema, AfkConfigSchema, (), ()>(&[get_config, insert_config])
+        .await
+        .map_err(|e| {
+            error!("Failed to set AFK config for user_id: {}\n{:?}", user_id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to set AFK config".into(),
+            )
+        })?;
 
     // list of 1 element: new_config only
     // list of 2 elements: old_config, new_config
 
-    if results.is_empty() {
-        error!(
-            "Failed to set AFK config for user_id: {}. No results returned.",
-            user_id
-        );
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Failed to set AFK config: No results returned".to_string(),
-        ));
-    }
-
-    if results.len() == 2
-        && let Some(old) = results.first()
-        && let Some(new) = results.last()
+    if let old = results.select.and_then(|v| v.first().cloned())
+        && let Some(new) = results.insert.and_then(|v| v.first().cloned())
     {
         return Ok(Json(AfkConfigResponse {
-            old_config: Some(old.clone()),
+            old_config: old.clone(),
             new_config: new.clone(),
         }));
     }
-
-    if results.len() == 1
-        && let Some(new) = results.first()
-    {
-        return Ok(Json(AfkConfigResponse {
-            old_config: None,
-            new_config: new.clone(),
-        }));
-    }
-
     error!(
-        "Unexpected number of results when setting AFK config for user_id: {}. Results: {:?}",
-        user_id, results
+        "Failed to set AFK config for user_id: {}. No results returned.",
+        user_id
     );
-    Err((
+    return Err((
         StatusCode::INTERNAL_SERVER_ERROR,
-        "Failed to set AFK config: Unexpected number of results".to_string(),
-    ))
+        "Failed to set AFK config: No results returned".to_string(),
+    ));
 }
 
 #[worker::send]
