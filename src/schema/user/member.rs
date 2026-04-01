@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 pub struct GuildMemberSchema {
     pub user_id: String,
     pub guild_id: String,
-    pub string: joi,
 }
 
 #[derive(Iden)]
@@ -18,4 +17,4 @@ pub enum User {
     CreatedAt,
 }
 
-impl UserSchema {}
+impl GuildMemberSchema {}
