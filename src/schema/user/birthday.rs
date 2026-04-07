@@ -1,3 +1,4 @@
+use chrono::Datelike;
 use sea_query::{Expr, Iden, InsertStatement, OnConflict, Query, SelectStatement};
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +14,7 @@ pub struct BirthdaySchema {
     pub updated_at: String,
 }
 
-#[derive(Iden)]
+#[derive(Iden, Clone, Copy, Debug)]
 pub enum Birthdays {
     #[iden = "birthdays"]
     Table,
@@ -30,6 +31,20 @@ pub enum Birthdays {
     #[iden = "updated_at"]
     UpdatedAt,
 }
+
+impl Birthdays {
+    pub fn all_columns() -> Vec<Self> {
+        vec![
+            Self::UserId,
+            Self::Day,
+            Self::Month,
+            Self::Year,
+            Self::CreatedAt,
+            Self::UpdatedAt,
+        ]
+    }
+}
+
 impl BirthdaySchema {
     pub fn insert_or_update(
         user_id: &str,
@@ -53,16 +68,9 @@ impl BirthdaySchema {
                 Birthdays::Day,
                 Birthdays::Month,
                 Birthdays::Year,
-                Birthdays::CreatedAt,
-                Birthdays::UpdatedAt,
-            ])
-            .values_panic(vec![
-                user_id.into(),
-                day.into(),
-                month.into(),
-                Expr::value(year),
             ])
             .on_conflict(on_conflict)
+            .values_panic([user_id.into(), day.into(), month.into(), Expr::value(year)])
             .to_owned()
     }
 
@@ -77,20 +85,25 @@ impl BirthdaySchema {
                 Birthdays::UpdatedAt,
             ])
             .from(Birthdays::Table)
-            .and_where(sea_query::Expr::col(Birthdays::UserId).eq(user_id.clone()))
+            .and_where(sea_query::Expr::col(Birthdays::UserId).eq(user_id))
             .to_owned()
     }
 
     pub fn delete_birthday(user_id: &str) -> sea_query::DeleteStatement {
         Query::delete()
             .from_table(Birthdays::Table)
-            .and_where(sea_query::Expr::col(Birthdays::UserId).eq(user_id.clone()))
+            .and_where(sea_query::Expr::col(Birthdays::UserId).eq(user_id))
+            .returning_all()
             .to_owned()
     }
 }
 
 impl StreamableSchema for BirthdaySchema {
     fn all_by_batch(batch_size: u64, offset: u64) -> sea_query::SelectStatement {
+        let now = chrono::Utc::now();
+        let current_month = now.month();
+        let current_day = now.day();
+
         Query::select()
             .columns(vec![
                 Birthdays::UserId,
@@ -101,6 +114,11 @@ impl StreamableSchema for BirthdaySchema {
                 Birthdays::UpdatedAt,
             ])
             .from(Birthdays::Table)
+            .and_where(
+                Expr::col(Birthdays::Month)
+                    .eq(current_month)
+                    .and(Expr::col(Birthdays::Day).eq(current_day)),
+            )
             .limit(batch_size)
             .offset(offset)
             .to_owned()

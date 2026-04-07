@@ -4,6 +4,7 @@ use sea_query::{
     SqliteQueryBuilder, UpdateStatement, Value, Values,
 };
 use serde::de::DeserializeOwned;
+use tracing::error;
 use wasm_bindgen::JsValue;
 use worker::{D1Database, D1PreparedStatement, D1Result, Env, send::SendWrapper};
 
@@ -69,16 +70,22 @@ impl Database {
     fn build_query<Q: QueryStatementWriter>(
         &self,
         query: Q,
-    ) -> worker::Result<D1PreparedStatement> {
+    ) -> worker::Result<(D1PreparedStatement, String)> {
         let (query_str, params) = query.build(SqliteQueryBuilder);
         let params = convert_params(params);
         let instance = self.get_db()?.prepare(&query_str);
-        instance.bind(&params)
+        match instance.bind(&params) {
+            Ok(prepared) => Ok((prepared, query_str)),
+            Err(e) => {
+                error!("Failed to prepare query: {}", query_str);
+                Err(e)
+            }
+        }
     }
 
     async fn execute_run<Q: QueryStatementWriter>(&self, query: Q) -> worker::Result<D1Result> {
         let instance = self.build_query(query)?;
-        instance.run().await
+        (instance.0.run().await).inspect_err(|_| error!("Failed to execute query: {}", instance.1))
     }
 
     async fn batch_run<Q: QueryStatementWriter + Clone>(
@@ -86,25 +93,21 @@ impl Database {
         queries: &[Q],
     ) -> worker::Result<Vec<D1Result>> {
         let mut statements = Vec::with_capacity(queries.len());
+        let mut query_strings = Vec::with_capacity(queries.len());
 
         for query in queries.iter().cloned() {
             let instance = self.build_query(query)?;
-            statements.push(instance);
+            statements.push(instance.0);
+            query_strings.push(instance.1);
         }
-
-        self.get_db()?.batch(statements).await
+        (self.get_db()?.batch(statements).await)
+            .inspect_err(|_| error!("Failed to execute batch queries: {:?}", query_strings))
     }
 
-    pub async fn batch_mixed<S, I, U, D>(
+    async fn batch_queries(
         &self,
         queries: &[QueryStatement],
-    ) -> worker::Result<MixedResult<S, I, U, D>>
-    where
-        S: DeserializeOwned,
-        I: DeserializeOwned,
-        U: DeserializeOwned,
-        D: DeserializeOwned,
-    {
+    ) -> worker::Result<Vec<(D1PreparedStatement, String)>> {
         let mut statements = Vec::with_capacity(queries.len());
 
         for query in queries.iter().cloned() {
@@ -116,32 +119,57 @@ impl Database {
             };
             statements.push(statement);
         }
-        let results = self.get_db()?.batch(statements).await?;
 
-        let mut result_output = MixedResult::default();
-        for (i, result) in results.iter().enumerate() {
-            match queries.get(i) {
-                Some(QueryStatement::Select(_)) => {
-                    let rows = result.results::<S>()?;
-                    result_output.select = Some(rows);
+        Ok(statements)
+    }
+
+    pub async fn batch_mixed<R: DeserializeOwned>(
+        &self,
+        queries: &[QueryStatement],
+    ) -> worker::Result<Vec<D1Result>> {
+        let (statements, query_strings) =
+            (self.batch_queries(queries).await?.into_iter()).unzip::<_, String, _, Vec<String>>();
+
+        (self.get_db()?.batch(statements).await)
+            .inspect_err(|_| error!("Failed to execute batch queries: {:?}", query_strings))
+    }
+
+    pub async fn simple_batch_mixed<S, I, U, D>(
+        &self,
+        queries: &[QueryStatement],
+    ) -> worker::Result<MixedResult<S, I, U, D>>
+    where
+        S: DeserializeOwned,
+        I: DeserializeOwned,
+        U: DeserializeOwned,
+        D: DeserializeOwned,
+    {
+        let (statements, query_strings) =
+            (self.batch_queries(queries).await?.into_iter()).unzip::<_, String, _, Vec<String>>();
+
+        let results = (self.get_db()?.batch(statements).await)
+            .inspect_err(|_| error!("Failed to execute batch queries: {:?}", query_strings))?;
+
+        let mut mixed_result = MixedResult::default();
+
+        for (query, result) in queries.iter().zip(results.into_iter()) {
+            match query {
+                QueryStatement::Select(_) => {
+                    mixed_result.select = Some(result.results::<S>()?);
                 }
-                Some(QueryStatement::Insert(_)) => {
-                    let rows = result.results::<I>()?;
-                    result_output.insert = Some(rows);
+                QueryStatement::Insert(_) => {
+                    mixed_result.insert = Some(result.results::<I>()?);
                 }
-                Some(QueryStatement::Update(_)) => {
-                    let rows = result.results::<U>()?;
-                    result_output.update = Some(rows);
+                QueryStatement::Update(_) => {
+                    mixed_result.update = Some(result.results::<U>()?);
                 }
-                Some(QueryStatement::Delete(_)) => {
-                    let rows = result.results::<D>()?;
-                    result_output.delete = Some(rows);
+                QueryStatement::Delete(_) => {
+                    mixed_result.delete = Some(result.results::<D>()?);
                 }
-                None => return Err(worker::Error::from("Unexpected query type")),
             }
         }
 
-        Ok(result_output)
+        Ok(mixed_result)
     }
 }
 
@@ -153,12 +181,7 @@ impl DatabaseExt<InsertStatement, ()> for Database {
     }
 
     async fn batch(&self, inputs: &[InsertStatement]) -> worker::Result<()> {
-        let results = self.batch_run(inputs).await?;
-
-        for result in results {
-            result.results::<()>()?;
-        }
-
+        let _ = self.batch_run(inputs).await?;
         Ok(())
     }
 }
@@ -212,17 +235,12 @@ where
 #[async_trait(?Send)]
 impl DatabaseExt<UpdateStatement, ()> for Database {
     async fn execute(&self, input: UpdateStatement) -> worker::Result<()> {
-        self.execute_run(input).await?;
+        let _ = self.execute_run(input).await?;
         Ok(())
     }
 
     async fn batch(&self, inputs: &[UpdateStatement]) -> worker::Result<()> {
-        let results = self.batch_run(inputs).await?;
-
-        for result in results {
-            result.results::<()>()?;
-        }
-
+        let _ = self.batch_run(inputs).await?;
         Ok(())
     }
 }
@@ -247,6 +265,19 @@ where
         }
 
         Ok(all_results)
+    }
+}
+
+#[async_trait(?Send)]
+impl DatabaseExt<DeleteStatement, ()> for Database {
+    async fn execute(&self, input: DeleteStatement) -> worker::Result<()> {
+        let _ = self.execute_run(input).await?;
+        Ok(())
+    }
+
+    async fn batch(&self, inputs: &[DeleteStatement]) -> worker::Result<()> {
+        let _ = self.batch_run(inputs).await?;
+        Ok(())
     }
 }
 
@@ -309,14 +340,11 @@ impl IntoQueryStatement for DeleteStatement {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct QueryBuilder(Vec<QueryStatement>);
 
 impl QueryBuilder {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn add(mut self, stmt: impl IntoQueryStatement) -> Self {
+    pub fn push(mut self, stmt: impl IntoQueryStatement) -> Self {
         self.0.push(stmt.into_query_statement());
         self
     }
@@ -404,7 +432,7 @@ macro_rules! queries {
         {
             let mut builder = $crate::state::database::QueryBuilder::new();
             $(
-                builder = builder.add($stmt);
+                builder = builder.push($stmt);
             )+
             builder.into()
         }

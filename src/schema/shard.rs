@@ -1,4 +1,4 @@
-use sea_query::{DeleteStatement, Expr, Iden, InsertStatement, SelectStatement};
+use sea_query::{DeleteStatement, Expr, Iden, InsertStatement, SelectStatement, UpdateStatement};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -7,7 +7,7 @@ pub struct ShardSchema {
     pub started_at: Option<String>, // Timestamp when the shard started
 }
 
-#[derive(Iden)]
+#[derive(Iden, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Shards {
     #[iden = "shards"]
     Table,
@@ -27,6 +27,14 @@ impl ShardSchema {
             .columns(vec![Shards::Id])
             .values_panic(vec![id.into()])
             .on_conflict(on_conflict)
+            .to_owned()
+    }
+
+    pub fn set_started_at(id: u32) -> UpdateStatement {
+        sea_query::Query::update()
+            .table(Shards::Table)
+            .value(Shards::StartedAt, Expr::current_timestamp())
+            .and_where(Expr::col(Shards::Id).eq(id))
             .to_owned()
     }
 

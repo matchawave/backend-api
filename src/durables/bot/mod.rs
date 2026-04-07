@@ -1,18 +1,16 @@
-use core::error;
 use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, collections::HashMap};
-use tracing::{debug, info};
+use tracing::info;
 
 use worker::{
-    durable_object, DurableObject, Env, Method, Request, Response, Result, SetAlarmOptions, State,
-    Stub, WebSocket, WebSocketIncomingMessage, WebSocketPair,
+    DurableObject, Env, Method, Request, Response, Result, State, Stub, WebSocket,
+    WebSocketIncomingMessage, WebSocketPair, durable_object,
 };
 
 use crate::services::websocket::WsEnvelope;
 
 mod alarms;
 mod misc;
-
 mod shards;
 
 use alarms::ScheduledAlarm;
@@ -148,17 +146,17 @@ impl DurableObject for BotDurable {
     }
 
     async fn fetch(&self, req: Request) -> Result<Response> {
-        if let Ok(Some(upgrade)) = req.headers().get("Upgrade") {
-            if upgrade.to_lowercase() == "websocket" {
-                let (ws, timestamp) = self.websocket_upgrade(req)?;
-                // if let Some(timestamp) = timestamp {
-                //     let alarm_options = alarms::default_options();
-                //     (self.state.storage())
-                //         .set_alarm_with_options(timestamp, alarm_options)
-                //         .await?;
-                // }
-                return Response::from_websocket(ws);
-            }
+        if let Ok(Some(upgrade)) = req.headers().get("Upgrade")
+            && upgrade.to_lowercase() == "websocket"
+        {
+            // if let Some(timestamp) = timestamp {
+            //     let alarm_options = alarms::default_options();
+            //     (self.state.storage())
+            //         .set_alarm_with_options(timestamp, alarm_options)
+            //         .await?;
+            // }
+            let (ws, timestamp) = self.websocket_upgrade(req)?;
+            return Response::from_websocket(ws);
         }
         let url = req.url()?;
         let method = req.method();

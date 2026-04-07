@@ -1,12 +1,10 @@
 mod afk;
-mod guild;
+pub mod guild;
 mod shard;
-mod user;
+pub mod user;
 
 pub use afk::*;
-pub use guild::*;
 pub use shard::*;
-pub use user::*;
 
 pub fn deserialize_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
 where

@@ -2,7 +2,7 @@ use sea_query::{DeleteStatement, Iden, InsertStatement, OnConflict, Query};
 use serde::{Deserialize, Serialize};
 
 #[derive(Iden)]
-pub enum GuildLogConfigs {
+pub enum LogConfigs {
     #[iden = "guild_log_configs"]
     Table,
     #[iden = "guild_id"]
@@ -37,7 +37,7 @@ pub enum LogTypes {
     Guild,
 }
 
-pub struct GuildLogConfigsSchema<T>
+pub struct LogConfigsSchema<T>
 where
     T: Serialize + for<'de> Deserialize<'de>,
 {
@@ -48,7 +48,7 @@ where
     pub updated_at: String,
 }
 
-impl<T> GuildLogConfigsSchema<T>
+impl<T> LogConfigsSchema<T>
 where
     T: Serialize + for<'de> Deserialize<'de>,
 {
@@ -59,17 +59,17 @@ where
     ) -> InsertStatement {
         let current_time = chrono::Utc::now().to_rfc3339();
         let on_conflict = OnConflict::new()
-            .update_columns(vec![GuildLogConfigs::Data, GuildLogConfigs::UpdatedAt])
+            .update_columns(vec![LogConfigs::Data, LogConfigs::UpdatedAt])
             .to_owned();
 
         Query::insert()
-            .into_table(GuildLogConfigs::Table)
+            .into_table(LogConfigs::Table)
             .columns(vec![
-                GuildLogConfigs::GuildId,
-                GuildLogConfigs::LogType,
-                GuildLogConfigs::Data,
-                GuildLogConfigs::CreatedAt,
-                GuildLogConfigs::UpdatedAt,
+                LogConfigs::GuildId,
+                LogConfigs::LogType,
+                LogConfigs::Data,
+                LogConfigs::CreatedAt,
+                LogConfigs::UpdatedAt,
             ])
             .values_panic(vec![
                 guild_id.clone().into(),
@@ -84,9 +84,9 @@ where
 
     pub fn delete_log_config(guild_id: &String, log_type: &String) -> DeleteStatement {
         Query::delete()
-            .from_table(GuildLogConfigs::Table)
-            .and_where(sea_query::Expr::col(GuildLogConfigs::GuildId).eq(guild_id.clone()))
-            .and_where(sea_query::Expr::col(GuildLogConfigs::LogType).eq(log_type.clone()))
+            .from_table(LogConfigs::Table)
+            .and_where(sea_query::Expr::col(LogConfigs::GuildId).eq(guild_id.clone()))
+            .and_where(sea_query::Expr::col(LogConfigs::LogType).eq(log_type.clone()))
             .to_owned()
     }
 }
@@ -114,7 +114,7 @@ create_log_struct!(
 );
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GuildIgnoreChannelsSchema {
+pub struct IgnoreChannelsSchema {
     pub guild_id: String,
     pub channel_id: String,
     pub created_at: String,
@@ -122,7 +122,7 @@ pub struct GuildIgnoreChannelsSchema {
 }
 
 #[derive(Iden)]
-pub enum GuildIgnoreChannels {
+pub enum IgnoreChannels {
     #[iden = "guild_ignore_channels"]
     Table,
     #[iden = "guild_id"]
@@ -136,7 +136,7 @@ pub enum GuildIgnoreChannels {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GuildIgnoreUsersSchema {
+pub struct IgnoreUsersSchema {
     pub guild_id: String,
     pub user_id: String,
     pub created_at: String,
@@ -144,7 +144,7 @@ pub struct GuildIgnoreUsersSchema {
 }
 
 #[derive(Iden)]
-pub enum GuildIgnoreUsers {
+pub enum IgnoreUsers {
     #[iden = "guild_ignore_users"]
     Table,
     #[iden = "guild_id"]
@@ -157,17 +157,17 @@ pub enum GuildIgnoreUsers {
     UpdatedAt,
 }
 
-impl GuildIgnoreChannelsSchema {
+impl IgnoreChannelsSchema {
     pub fn insert(guild_id: &String, channel_id: &String) -> InsertStatement {
         let current_time = chrono::Utc::now().to_rfc3339();
 
         Query::insert()
-            .into_table(GuildIgnoreChannels::Table)
+            .into_table(IgnoreChannels::Table)
             .columns(vec![
-                GuildIgnoreChannels::GuildId,
-                GuildIgnoreChannels::ChannelId,
-                GuildIgnoreChannels::CreatedAt,
-                GuildIgnoreChannels::UpdatedAt,
+                IgnoreChannels::GuildId,
+                IgnoreChannels::ChannelId,
+                IgnoreChannels::CreatedAt,
+                IgnoreChannels::UpdatedAt,
             ])
             .values_panic(vec![
                 guild_id.clone().into(),
@@ -180,24 +180,24 @@ impl GuildIgnoreChannelsSchema {
 
     pub fn delete_ignore_channel(guild_id: &String, channel_id: &String) -> DeleteStatement {
         Query::delete()
-            .from_table(GuildIgnoreChannels::Table)
-            .and_where(sea_query::Expr::col(GuildIgnoreChannels::GuildId).eq(guild_id.clone()))
-            .and_where(sea_query::Expr::col(GuildIgnoreChannels::ChannelId).eq(channel_id.clone()))
+            .from_table(IgnoreChannels::Table)
+            .and_where(sea_query::Expr::col(IgnoreChannels::GuildId).eq(guild_id.clone()))
+            .and_where(sea_query::Expr::col(IgnoreChannels::ChannelId).eq(channel_id.clone()))
             .to_owned()
     }
 }
 
-impl GuildIgnoreUsersSchema {
+impl IgnoreUsersSchema {
     pub fn insert(guild_id: &String, user_id: &String) -> InsertStatement {
         let current_time = chrono::Utc::now().to_rfc3339();
 
         Query::insert()
-            .into_table(GuildIgnoreUsers::Table)
+            .into_table(IgnoreUsers::Table)
             .columns(vec![
-                GuildIgnoreUsers::GuildId,
-                GuildIgnoreUsers::UserId,
-                GuildIgnoreUsers::CreatedAt,
-                GuildIgnoreUsers::UpdatedAt,
+                IgnoreUsers::GuildId,
+                IgnoreUsers::UserId,
+                IgnoreUsers::CreatedAt,
+                IgnoreUsers::UpdatedAt,
             ])
             .values_panic(vec![
                 guild_id.clone().into(),
@@ -210,9 +210,9 @@ impl GuildIgnoreUsersSchema {
 
     pub fn delete_ignore_user(guild_id: &String, user_id: &String) -> DeleteStatement {
         Query::delete()
-            .from_table(GuildIgnoreUsers::Table)
-            .and_where(sea_query::Expr::col(GuildIgnoreUsers::GuildId).eq(guild_id.clone()))
-            .and_where(sea_query::Expr::col(GuildIgnoreUsers::UserId).eq(user_id.clone()))
+            .from_table(IgnoreUsers::Table)
+            .and_where(sea_query::Expr::col(IgnoreUsers::GuildId).eq(guild_id.clone()))
+            .and_where(sea_query::Expr::col(IgnoreUsers::UserId).eq(user_id.clone()))
             .to_owned()
     }
 }

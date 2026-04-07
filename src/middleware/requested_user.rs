@@ -1,17 +1,19 @@
 use crate::state::user::{Bot, RequestedUser};
 use axum::{extract::Request, http::HeaderMap, middleware::Next, response::Response};
-use serde::de;
 use tracing::debug;
 
 pub async fn middleware(headers: HeaderMap, mut req: Request, next: Next) -> Response {
-    if let Some(client) = get_client(&headers) {
-        if let ["DiscordBot", token] = client.split_whitespace().collect::<Vec<&str>>().as_slice() {
-            // TODO: Validate the bot token here
-            let val = Bot::new(token.to_string());
-            req.extensions_mut().insert(RequestedUser::Bot(val));
-            return next.run(req).await;
-        }
+    debug!("Checking for client header in request");
+    if let Some(client) = get_client(&headers)
+        && let ["DiscordBot", token] = client.split_whitespace().collect::<Vec<&str>>().as_slice()
+    {
+        // TODO: Validate the bot token here
+        let val = Bot::new(token.to_string());
+        req.extensions_mut().insert(RequestedUser::Bot(val));
+        debug!("Request made by bot with token");
+        return next.run(req).await;
     }
+
     req.extensions_mut().insert(RequestedUser::User); // This is a discord bot making the request (Check if the token is valid)
     next.run(req).await
 }

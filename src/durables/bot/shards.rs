@@ -15,6 +15,17 @@ pub struct ShardUpdatePayload {
     pub members: u32,
 }
 
+impl Default for ShardUpdatePayload {
+    fn default() -> Self {
+        ShardUpdatePayload {
+            shard_id: 0,
+            status: "unknown".to_string(),
+            latency_ms: None,
+            members: 0,
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PingPayload {
     pub timestamp: i64,

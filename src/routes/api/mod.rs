@@ -10,7 +10,7 @@ pub fn router() -> Router {
     Router::new()
         .merge(protected::router())
         .nest("/guilds", guilds::router())
-        .nest("/shards", shards::router())
+        .nest("/shard", shards::router())
         .nest("/auth", auth::router())
         .layer(axum::middleware::from_fn(
             middleware::cookie_check::middleware,

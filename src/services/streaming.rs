@@ -12,12 +12,9 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, warn};
 use wasm_bindgen_futures::spawn_local;
 
-use crate::state::{
-    database::{Database, DatabaseExt},
-    user::RequestedUser,
-};
+use crate::state::database::{Database, DatabaseExt};
 
-const BATCH_SIZE: usize = 100;
+const BATCH_SIZE: u64 = 100;
 
 pub trait StreamableSchema {
     fn all_by_batch(batch_size: u64, offset: u64) -> sea_query::SelectStatement;
@@ -37,7 +34,7 @@ where
     spawn_local(async move {
         let mut offset = 0;
         loop {
-            let query = T::all_by_batch(BATCH_SIZE as u64, offset);
+            let query = T::all_by_batch(BATCH_SIZE, offset);
             let users: Vec<T> = match database.execute(query).await {
                 Ok(users) => users,
                 Err(e) => {
@@ -67,7 +64,7 @@ where
                 }
             }
 
-            offset += BATCH_SIZE as u64;
+            offset += BATCH_SIZE;
         }
     });
 

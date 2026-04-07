@@ -1,79 +1,124 @@
-DROP TABLE IF EXISTS guild_settings;
-CREATE TABLE guild_settings (
+DROP TABLE IF EXISTS guild_prefixes;
+CREATE TABLE guild_prefixes (
     guild_id TEXT PRIMARY KEY NOT NULL,
-    prefix TEXT DEFAULT '!' NOT NULL,
-    language TEXT DEFAULT 'en' NOT NULL,
-    colour TEXT DEFAULT NULL,
+    prefix TEXT NOT NULL,
     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
-DROP TABLE IF EXISTS command_aliases;
-CREATE TABLE command_aliases(
-    guild_id TEXT NOT NULL,
-    command TEXT NOT NULL,
-    alias TEXT NOT NULL,
-    args TEXT DEFAULT NULL,
-    author_id TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
-    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
-    PRIMARY KEY (guild_id, command, alias)
+DROP TABLE IF EXISTS guild_timezones;
+CREATE TABLE guild_timezones (
+    guild_id TEXT PRIMARY KEY NOT NULL,
+    timezone TEXT NOT NULL,
+    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
 );
 
+DROP TABLE IF EXISTS guild_languages;
+CREATE TABLE guild_languages (
+    guild_id TEXT PRIMARY KEY NOT NULL,
+    language TEXT NOT NULL CHECK(language IN ('english', 'français')),
+    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+);
 
-DROP TRIGGER IF EXISTS guild_inserted_guild_settings;
-CREATE TRIGGER guild_inserted_guild_settings
-AFTER INSERT ON guild_settings
+DROP TABLE IF EXISTS guild_colours;
+CREATE TABLE guild_colours (
+    guild_id TEXT PRIMARY KEY NOT NULL,
+    colour TEXT NOT NULL,
+    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+);
+
+DROP TRIGGER IF EXISTS guild_inserted_guild_prefixes;
+CREATE TRIGGER guild_inserted_guild_prefixes
+AFTER INSERT ON guild_prefixes
 FOR EACH ROW
 BEGIN
     UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
 END;
 
-DROP TRIGGER IF EXISTS guild_updated_guild_settings;
-CREATE TRIGGER guild_updated_guild_settings
-AFTER UPDATE ON guild_settings
+DROP TRIGGER IF EXISTS guild_updated_guild_prefixes;
+CREATE TRIGGER guild_updated_guild_prefixes
+AFTER UPDATE ON guild_prefixes
 FOR EACH ROW
 BEGIN
     UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
 END;
 
-DROP TRIGGER IF EXISTS guild_deleted_guild_settings;
-CREATE TRIGGER guild_deleted_guild_settings
-AFTER DELETE ON guild_settings
+DROP TRIGGER IF EXISTS guild_deleted_guild_prefixes;
+CREATE TRIGGER guild_deleted_guild_prefixes
+AFTER DELETE ON guild_prefixes
 FOR EACH ROW
 BEGIN
     UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
 END;
 
-DROP TRIGGER IF EXISTS guild_inserted_command_aliases;
-CREATE TRIGGER guild_inserted_command_aliases
-AFTER INSERT ON command_aliases
+DROP TRIGGER IF EXISTS guild_inserted_guild_languages;
+CREATE TRIGGER guild_inserted_guild_languages
+AFTER INSERT ON guild_languages
 FOR EACH ROW
 BEGIN
     UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
 END;
 
-DROP TRIGGER IF EXISTS guild_updated_command_aliases;
-CREATE TRIGGER guild_updated_command_aliases
-AFTER UPDATE ON command_aliases
+DROP TRIGGER IF EXISTS guild_updated_guild_languages;
+CREATE TRIGGER guild_updated_guild_languages
+AFTER UPDATE ON guild_languages
 FOR EACH ROW
 BEGIN
     UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
 END;
 
-DROP TRIGGER IF EXISTS guild_deleted_command_aliases;
-CREATE TRIGGER guild_deleted_command_aliases
-AFTER DELETE ON command_aliases
+DROP TRIGGER IF EXISTS guild_deleted_guild_languages;
+CREATE TRIGGER guild_deleted_guild_languages
+AFTER DELETE ON guild_languages
 FOR EACH ROW
 BEGIN
     UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
 END;
 
-DROP TRIGGER IF EXISTS user_not_exists_command_aliases;
-CREATE TRIGGER user_not_exists_command_aliases
-BEFORE INSERT ON command_aliases
+DROP TRIGGER IF EXISTS guild_inserted_guild_timezones;
+CREATE TRIGGER guild_inserted_guild_timezones
+AFTER INSERT ON guild_timezones
 FOR EACH ROW
 BEGIN
-    INSERT OR IGNORE INTO users(id) VALUES (NEW.author_id);
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
 END;
+
+DROP TRIGGER IF EXISTS guild_updated_guild_timezones;
+CREATE TRIGGER guild_updated_guild_timezones
+AFTER UPDATE ON guild_timezones
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_guild_timezones;
+CREATE TRIGGER guild_deleted_guild_timezones
+AFTER DELETE ON guild_timezones
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_inserted_guild_colours;
+CREATE TRIGGER guild_inserted_guild_colours
+AFTER INSERT ON guild_colours
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_updated_guild_colours;
+CREATE TRIGGER guild_updated_guild_colours
+AFTER UPDATE ON guild_colours
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.guild_id;
+END;
+
+DROP TRIGGER IF EXISTS guild_deleted_guild_colours;
+CREATE TRIGGER guild_deleted_guild_colours
+AFTER DELETE ON guild_colours
+FOR EACH ROW
+BEGIN
+    UPDATE guilds SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.guild_id;
+END;
+

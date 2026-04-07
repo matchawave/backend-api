@@ -31,6 +31,7 @@ tracing = "0.1"
 tracing-web = "0.1"
 tracing-subscriber = { version = "0.3", features = ['time', 'json'] }
 time = { version = "0.3", features = ["wasm-bindgen"] }
+paste = "1"
 
 worker = { version = "0.7.2", features = ['http', 'axum', "timezone", "d1"] }
 worker-macros = { version = "0.7.2", features = ['http'] }

@@ -5,13 +5,12 @@ mod afk;
 mod birthday;
 mod giveaway;
 mod leveling;
-mod member;
 mod voice;
+
 pub use afk::*;
 pub use birthday::*;
 pub use giveaway::*;
 pub use leveling::*;
-pub use member::*;
 pub use voice::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

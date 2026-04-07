@@ -4,7 +4,7 @@ use axum::{
     routing::{get, post},
 };
 use reqwest::StatusCode;
-use sea_query::{Expr, Query, SelectStatement};
+use sea_query::{Expr, SelectStatement};
 use tracing::{error, info, warn};
 use worker::{Env, Stub};
 
@@ -13,8 +13,7 @@ use crate::{
         DurableFetch,
         bot::{BotDurable, ShardUpdatePayload},
     },
-    schema::{Guild, GuildSchema, ShardSchema},
-    snowflake_protection,
+    schema::{ShardSchema, Shards, guild::Guild},
     state::{
         database::{Database, DatabaseExt},
         user::RequestedUser,
@@ -24,7 +23,7 @@ use crate::{
 pub fn router() -> Router {
     Router::new()
         .route("/", get(get_all_shards))
-        .route("/{guild}", get(get_shard_by_guild))
+        .route("/{shard_id}", get(get_shard).post(set_shard_started))
         .route("/started/{count}", post(set_started_shards))
 }
 
@@ -52,29 +51,43 @@ async fn get_all_shards(
         (StatusCode::INTERNAL_SERVER_ERROR, "".to_string())
     })?;
 
-    let shard_infos: Vec<ShardSchema> =
-        (database.execute(ShardSchema::get_all()).await).map_err(|e| {
-            error!("Failed to get shard information from database: {}", e);
+    let shards_with_guild_counts: Vec<ShardGuildCount> = database
+        .execute(get_guild_counts_and_shards())
+        .await
+        .map_err(|e| {
+            error!("Failed to get guild counts from database: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "".to_string())
         })?;
 
-    let guild_counts: Vec<u32> = database.execute(get_guild_counts()).await.map_err(|e| {
-        error!("Failed to get guilds for shards: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "".to_string())
-    })?;
-
-    let output = (shard_datas.iter().zip(guild_counts).zip(shard_infos))
-        .map(|((shard, guild_counts), info)| ShardWithGuildCount {
-            shard: shard.shard_id,
-            status: shard.status.clone(),
-            latency: shard.latency_ms,
-            guilds: guild_counts,
-            users: shard.members,
-            started: info.started_at,
-        })
-        .collect::<Vec<_>>();
+    let output =
+        (shards_with_guild_counts.iter())
+            .map(|info| {
+                let shard = shard_datas.get(info.shard_id as usize).cloned().unwrap_or(
+                    ShardUpdatePayload {
+                        shard_id: info.shard_id,
+                        ..Default::default()
+                    },
+                );
+                ShardWithGuildCount {
+                    shard: shard.shard_id,
+                    status: shard.status.clone(),
+                    latency: shard.latency_ms,
+                    guilds: info.guild_count,
+                    users: shard.members,
+                    started: info.started_at.clone(),
+                }
+            })
+            .collect::<Vec<_>>();
 
     Ok(Json(output))
+}
+
+#[derive(serde::Deserialize)]
+pub struct ShardGuildCount {
+    #[serde(rename = "id")]
+    shard_id: u32,
+    started_at: Option<String>,
+    guild_count: u32,
 }
 
 async fn get_shards(req: &Request, bot_durable: Stub) -> Result<Vec<ShardUpdatePayload>, String> {
@@ -93,6 +106,92 @@ async fn get_shards(req: &Request, bot_durable: Stub) -> Result<Vec<ShardUpdateP
         .map_err(|e| format!("Failed to deserialize shard status response: {}", e))?;
 
     Ok(shards)
+}
+
+fn get_guild_counts_and_shards() -> SelectStatement {
+    let shard_id_col = (Shards::Table, Shards::Id);
+    let shard_started_col = (Shards::Table, Shards::StartedAt);
+    let guild_id_col = (Guild::Table, Guild::Id);
+    let guild_shard_col = (Guild::Table, Guild::ShardId);
+
+    SelectStatement::new()
+        .columns([shard_id_col, shard_started_col])
+        .from(Shards::Table)
+        .expr_as(Expr::col(guild_id_col).count(), "guild_count")
+        .left_join(
+            Guild::Table,
+            Expr::col(shard_id_col).equals(guild_shard_col),
+        )
+        .group_by_col(shard_id_col)
+        .order_by(shard_id_col, sea_query::Order::Asc)
+        .to_owned()
+}
+
+#[worker::send]
+#[axum::debug_handler]
+async fn get_shard(
+    Extension(database): Extension<Database>,
+    Path(shard_id): Path<String>,
+) -> Result<Json<Vec<ShardSchema>>, (StatusCode, String)> {
+    info!("Fetching shard information for shard: {}", shard_id);
+
+    let shard_id: u32 = shard_id.parse().map_err(|e| {
+        warn!("Invalid shard ID provided: {}: {:?}", shard_id, e);
+        (
+            StatusCode::BAD_REQUEST,
+            "Invalid shard ID provided".to_string(),
+        )
+    })?;
+
+    let shards: Vec<ShardSchema> = (database.execute(ShardSchema::get_by_id(shard_id)).await)
+        .map_err(|e| {
+            warn!("Failed to get shard for shard {}: {:?}", shard_id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to get shard for shard".to_string(),
+            )
+        })?;
+
+    if shards.is_empty() {
+        warn!("No shard found for shard: {}", shard_id);
+        return Err((
+            StatusCode::NOT_FOUND,
+            "No shard found for the specified shard".to_string(),
+        ));
+    }
+    Ok(Json(shards))
+}
+
+#[worker::send]
+#[axum::debug_handler]
+async fn set_shard_started(
+    Extension(database): Extension<Database>,
+    Path(shard_id): Path<String>,
+    Extension(requested_user): Extension<RequestedUser>,
+) -> Result<(), (StatusCode, String)> {
+    requested_user.bot_protection("Shard Starting")?;
+    info!("Setting shard {} as started", shard_id);
+
+    let shard_id: u32 = shard_id.parse().map_err(|e| {
+        warn!("Invalid shard ID provided: {}: {:?}", shard_id, e);
+        (
+            StatusCode::BAD_REQUEST,
+            "Invalid shard ID provided".to_string(),
+        )
+    })?;
+
+    (database
+        .execute(ShardSchema::set_started_at(shard_id))
+        .await)
+        .map_err(|e| {
+            error!("Failed to set shard {} as started: {:?}", shard_id, e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to set shard as started".to_string(),
+            )
+        })?;
+    info!("Shard {} set as started", shard_id);
+    Ok(())
 }
 
 /// Reset's the database's count of shards
@@ -125,52 +224,6 @@ async fn set_started_shards(
     info!("Inserted {} new shards", count);
 
     Ok(())
-}
-/// Get specific shard information by ID
-#[worker::send]
-#[axum::debug_handler]
-async fn get_shard_by_guild(
-    Extension(database): Extension<Database>,
-    Path(guild_id): Path<String>,
-) -> Result<Json<Vec<Shard>>, (StatusCode, String)> {
-    info!("Fetching shard information for guild: {}", guild_id);
-
-    // Make sure the guild ID is a valid Discord snowflake
-    snowflake_protection!(guild_id);
-
-    let shards: Vec<Shard> = (database
-        .execute(GuildSchema::get_shard(guild_id.clone()))
-        .await)
-        .map_err(|e| {
-            warn!("Failed to get shard for guild {}: {:?}", guild_id, e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to get shard for guild".to_string(),
-            )
-        })?;
-
-    if shards.is_empty() {
-        warn!("No shard found for guild: {}", guild_id);
-        return Err((
-            StatusCode::NOT_FOUND,
-            "No shard found for the specified guild".to_string(),
-        ));
-    }
-    Ok(Json(shards))
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
-struct Shard {
-    shard_id: u32,
-}
-/// This is to get the total number of guilds stored in each shard
-fn get_guild_counts() -> SelectStatement {
-    Query::select()
-        .column(Guild::ShardId)
-        .expr(Expr::col(Guild::Id).count())
-        .from(Guild::Table)
-        .group_by_col(Guild::ShardId)
-        .to_owned()
 }
 
 #[derive(serde::Serialize)]

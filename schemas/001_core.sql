@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS guild_settings;
+
 DROP TABLE IF EXISTS shards;
 CREATE TABLE shards (
     id INTEGER PRIMARY KEY, -- Shard ID
@@ -16,6 +18,6 @@ CREATE TABLE guilds (
     enabled BOOLEAN NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)), -- Whether the bot is active in this guild
     shard_id INTEGER NOT NULL,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- When the bot was added to the guild
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- When the guild activity was last recorded
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- When the guild activity was last recorded
     FOREIGN KEY (shard_id) REFERENCES shards(id) ON DELETE CASCADE
 );

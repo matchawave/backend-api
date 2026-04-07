@@ -1,19 +1,17 @@
-mod afk;
-mod birthday;
 mod gateway;
 mod guild;
+mod streams;
+mod user;
 
-use axum::{routing::get, Router};
+use axum::{Router, middleware, routing::get};
 
-use crate::middleware;
+use crate::middleware as ware;
 
 pub fn router() -> Router {
     Router::new()
         .nest("/guild/{guild_id}", guild::router())
-        .nest("/afk", afk::router())
-        .nest("/birthday", birthday::router())
+        .nest("/user/{user_id}", user::router())
+        .nest("/stream", streams::router())
         .route("/gateway/{bot_id}", get(gateway::handle_websocket))
-        .layer(axum::middleware::from_fn(
-            middleware::api_protect::middleware,
-        ))
+        .layer(middleware::from_fn(ware::api_protect::middleware))
 }

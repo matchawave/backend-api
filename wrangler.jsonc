@@ -1,0 +1,70 @@
+{
+  "name": "backend",
+  "main": "build/worker/shim.mjs",
+  "compatibility_date": "2025-07-26",
+  "placement": {
+    "mode": "smart",
+  },
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true,
+    },
+    "logs": {
+      "enabled": true,
+    },
+  },
+  "build": {
+    "watch_dir": "./src",
+    "command": "cargo install -q worker-build && worker-build --dev",
+  },
+  "vars": {
+    "DASHBOARD_URL": "http://localhost:5173",
+    "API_HOST": "http://127.0.0.1:8787",
+    "DISCORD_CLIENT_ID": "1340907937471660142",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "test",
+      "database_id": "abf560e8-ca5d-42f4-8791-1468261d66cc",
+      "remote": true,
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOTROOM",
+        "class_name": "BotDurable",
+      },
+    ],
+  },
+
+  "env": {
+    "production": {
+      "vars": {
+        "DASHBOARD_URL": "https://webpage-production.giloe-dev.workers.dev",
+        "API_HOST": "https://backend-production.giloe-dev.workers.dev",
+      },
+      "build": {
+        "command": "cargo install -q worker-build && worker-build --release",
+      },
+    },
+    "staging": {
+      "vars": {
+        "DASHBOARD_URL": "https://webpage-staging.giloe-dev.workers.dev",
+        "API_HOST": "https://backend-staging.giloe-dev.workers.dev",
+      },
+      "build": {
+        "command": "cargo install -q worker-build && worker-build --release",
+      },
+    },
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BotDurable"],
+    },
+  ],
+}
